@@ -1,11 +1,12 @@
 package game
 
 import "core:fmt"
+import "core:math"
 import "core:math/linalg"
 import "core:math/rand"
 import rl "libs:raylib"
 
-enemies_max :: 1028
+enemies_max :: 1024
 
 enemy_acceleration_min :: 1.0
 enemy_acceleration_max :: 3.0
@@ -14,8 +15,10 @@ EnemyType :: enum {
 	Grunt,
 }
 
+EnemyId :: distinct uint
+
 Enemy :: struct {
-	id:           uint,
+	id:           EnemyId,
 	type:         EnemyType,
 	alive:        bool,
 	position:     rl.Vector2,
@@ -28,6 +31,7 @@ EnemyManager :: struct {
 	player:      ^Player,
 	enemies:     #soa[enemies_max]Enemy,
 	enemy_index: uint,
+	count:       uint,
 }
 
 enemy_manager_create :: proc(player: ^Player) -> ^EnemyManager {
@@ -38,14 +42,26 @@ enemy_manager_create :: proc(player: ^Player) -> ^EnemyManager {
 }
 
 enemy_spawn :: proc(using self: ^EnemyManager, type: EnemyType, position: rl.Vector2) {
-	if enemy_index >= enemies_max {
+	// find free index
+	reused_index := false
+	index := enemy_index
+
+	for i in 0 ..< enemy_index {
+		if !enemies[i].alive {
+			reused_index = true
+			index = i
+			break
+		}
+	}
+
+	if index == enemy_index && enemy_index >= enemies_max {
 		return
 	}
 
 	// TODO: depending on type define size and speed
 
-	enemies[enemy_index] = Enemy {
-		enemy_index,
+	enemies[index] = Enemy {
+		EnemyId(index),
 		type,
 		true,
 		position,
@@ -53,35 +69,41 @@ enemy_spawn :: proc(using self: ^EnemyManager, type: EnemyType, position: rl.Vec
 		rand.float32_range(enemy_acceleration_min, enemy_acceleration_max),
 		8,
 	}
-	enemy_index += 1
+
+	if !reused_index {
+		enemy_index += 1
+	}
+
+	count += 1
 }
 
-boids :: proc(using self: ^EnemyManager, me: uint) -> rl.Vector2 {
+boids :: proc(using self: ^EnemyManager, me: EnemyId) -> rl.Vector2 {
 	return boids_rule1(self, me) + boids_rule2(self, me) + boids_rule3(self, me)
 }
 
-boids_rule1 :: proc(using self: ^EnemyManager, me: uint) -> rl.Vector2 {
+boids_rule1 :: proc(using self: ^EnemyManager, me: EnemyId) -> rl.Vector2 {
 	sum := rl.Vector2(0)
 
 	for i in 0 ..< enemy_index {
-		if me == uint(i) {
+		if me == EnemyId(i) || !enemies[i].alive {
 			continue
 		}
-		sum += enemies[enemy_index].position
+
+		sum += enemies[i].position
 	}
 
-	center_of_mass := sum / f32(enemy_index - 1)
+	center_of_mass := sum / f32(count)
 
 	return direction_to(enemies[me].position, center_of_mass) / 100
 }
 
-boids_rule2 :: proc(using self: ^EnemyManager, me: uint) -> rl.Vector2 {
+boids_rule2 :: proc(using self: ^EnemyManager, me: EnemyId) -> rl.Vector2 {
 	threshold :: 15.0
 
 	c := rl.Vector2(0)
 
 	for i in 0 ..< enemy_index {
-		if me == uint(i) {
+		if me == EnemyId(i) || !enemies[i].alive {
 			continue
 		}
 
@@ -93,24 +115,28 @@ boids_rule2 :: proc(using self: ^EnemyManager, me: uint) -> rl.Vector2 {
 	return c
 }
 
-boids_rule3 :: proc(using self: ^EnemyManager, me: uint) -> rl.Vector2 {
+boids_rule3 :: proc(using self: ^EnemyManager, me: EnemyId) -> rl.Vector2 {
 	vel := rl.Vector2(0)
 
 	for i in 0 ..< enemy_index {
-		if me == uint(i) {
+		if me == EnemyId(i) || !enemies[i].alive {
 			continue
 		}
 
-		vel += enemies[enemy_index].velocity
+		vel += enemies[i].velocity
 	}
 
-	vel /= f32(enemy_index - 1)
+	vel /= f32(count)
 
-	return (vel - enemies[enemy_index].velocity) / 8
+	return (vel - enemies[me].velocity) / 8
 }
 
 enemy_manager_update :: proc(using self: ^EnemyManager, dt: f32) {
 	for i in 0 ..< enemy_index {
+		if !enemies[i].alive {
+			continue
+		}
+
 		// check if an enemy collides with player
 		if rl.CheckCollisionRecs(
 			    {
@@ -140,6 +166,10 @@ enemy_manager_update :: proc(using self: ^EnemyManager, dt: f32) {
 
 enemy_manager_draw :: proc(using self: ^EnemyManager) {
 	for i in 0 ..< enemy_index {
+		if !enemies[i].alive {
+			continue
+		}
+
 		enemy := &enemies[i]
 
 		rl.DrawRectangleRec(
@@ -154,6 +184,11 @@ enemy_manager_draw :: proc(using self: ^EnemyManager) {
 			rl.GREEN,
 		)
 	}
+}
+
+enemy_manager_kill :: proc(using self: ^EnemyManager, enemy_id: EnemyId) {
+	enemies[enemy_id].alive = false
+	count -= 1
 }
 
 enemy_manager_destroy :: proc(self: ^EnemyManager) {

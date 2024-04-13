@@ -73,6 +73,7 @@ game_on_message :: proc(receiver: rawptr, msg_type: MessageType, msg_data: Messa
 		fmt.println("YOU LOST")
 	case .PlayerGotHit:
 		data := msg_data.(ByEnemyMsg)
+		enemy_manager_kill(game.em, data.by.id)
 		// TODO: maybe do something with the enemy type?
 		player_process_hit(game.player)
 	}
