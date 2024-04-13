@@ -2,13 +2,13 @@
     "$schema": "https://raw.githubusercontent.com/DanielGavin/ols/master/misc/ols.schema.json",
     "enable_document_symbols": true,
     "enable_hover": true,
-    "enable_snippets": true,
+    "enable_snippets": false,
     "enable_fake_methods": true,
     "enable_inlay_hints": false,
     "enable_format": true,
     "enable_procedure_context": true,
     "enable_references": true,
-    "enable_semantic_tokens": true,
+    "enable_semantic_tokens": false,
     "thread_pool_count": 4,
     "collections": [
         {
