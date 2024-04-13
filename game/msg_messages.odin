@@ -2,16 +2,17 @@ package game
 
 MessageType :: enum {
 	PlayerGotHit,
+	EnemyGotHit,
 	PlayerDied,
 }
 
 MessageData :: union {
 	EmptyMsg,
-	ByEnemyMsg,
+	EnemyMsg,
 }
 
 EmptyMsg :: struct {}
 
-ByEnemyMsg :: struct {
-	by: Enemy,
+EnemyMsg :: struct {
+	enemy: EnemyId,
 }

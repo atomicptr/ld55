@@ -17,6 +17,7 @@ enemy_spawn_time :: 0.2
 Game :: struct {
 	player:            ^Player,
 	em:                ^EnemyManager,
+	pm:                ^ProjectileManager,
 	enemy_spawn_timer: Timer,
 	camera:            rl.Camera2D,
 }
@@ -56,6 +57,7 @@ main :: proc() {
 	game := create()
 	broker_register(b, .PlayerGotHit, &game, game_on_message)
 	broker_register(b, .PlayerDied, &game, game_on_message)
+	broker_register(b, .EnemyGotHit, &game, game_on_message)
 
 	for !rl.WindowShouldClose() {
 		update(&game)
@@ -72,10 +74,18 @@ game_on_message :: proc(receiver: rawptr, msg_type: MessageType, msg_data: Messa
 	case .PlayerDied:
 		fmt.println("YOU LOST")
 	case .PlayerGotHit:
-		data := msg_data.(ByEnemyMsg)
-		enemy_manager_kill(game.em, data.by.id)
+		#partial switch data in msg_data {
+		case EmptyMsg:
+		// got damage from projectile or something else
+		case EnemyMsg:
+			enemy_manager_kill(game.em, data.enemy)
+		}
+
 		// TODO: maybe do something with the enemy type?
 		player_process_hit(game.player)
+	case .EnemyGotHit:
+		data := msg_data.(EnemyMsg)
+		enemy_manager_kill(game.em, data.enemy)
 	}
 }
 
@@ -89,6 +99,7 @@ create :: proc() -> Game {
 		zoom,
 	}
 	game.em = enemy_manager_create(game.player)
+	game.pm = projectile_manager_create(game.player, game.em)
 	game.enemy_spawn_timer = timer_create(enemy_spawn_time)
 	return game
 }
@@ -99,6 +110,10 @@ update :: proc(using game: ^Game) {
 	dt := rl.GetFrameTime()
 
 	timer_update(&enemy_spawn_timer, dt)
+
+	if rl.IsKeyPressed(rl.KeyboardKey.SPACE) {
+		projectile_manager_shoot(pm, player.position, {0, -1}, 100.0, true)
+	}
 
 	if enemy_spawn_timer.finished {
 		enemy_spawn(
@@ -114,6 +129,7 @@ update :: proc(using game: ^Game) {
 	camera.target = player.position
 
 	enemy_manager_update(em, dt)
+	projectile_manager_update(pm, dt)
 	player_update(player, dt)
 }
 
@@ -138,15 +154,18 @@ draw :: proc(using game: ^Game) {
 		rl.DrawRectangleRec({100, 100, 100, 100}, rl.GRAY)
 
 		enemy_manager_draw(em)
+		projectile_manager_draw(pm)
 		player_draw(player)
 	}
 
 	rl.DrawFPS(10, 10)
 	rl.DrawText(fmt.ctprintf("Health: %d", player.health), 10, 30, 20, rl.BLACK)
 	rl.DrawText(fmt.ctprintf("Enemies: %d", em.col_count), 10, 50, 20, rl.BLACK)
+	rl.DrawText(fmt.ctprintf("Projectile: %d", pm.col_count), 10, 70, 20, rl.BLACK)
 }
 
 destroy :: proc(game: ^Game) {
+	projectile_manager_destroy(game.pm)
 	enemy_manager_destroy(game.em)
 	player_destroy(game.player)
 	broker_destroy(b)

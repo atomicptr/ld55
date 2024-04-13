@@ -127,7 +127,7 @@ enemy_manager_update :: proc(using self: ^EnemyManager, dt: f32) {
 			   },
 			   {player.position.x, player.position.y, player_size, player_size},
 		   ) {
-			broker_post(b, .PlayerGotHit, ByEnemyMsg{col_items[i]})
+			broker_post(b, .PlayerGotHit, EnemyMsg{EnemyId(i)})
 		}
 
 		// update position
@@ -168,6 +168,40 @@ enemy_manager_draw :: proc(using self: ^EnemyManager) {
 
 enemy_manager_kill :: proc(using self: ^EnemyManager, enemy_id: EnemyId) {
 	col_free_id(&self.collection, enemy_id)
+}
+
+enemy_manager_is_colliding :: proc(
+	using self: ^EnemyManager,
+	rect: rl.Rectangle,
+) -> (
+	bool,
+	EnemyId,
+) {
+	for i in 0 ..< col_index {
+		if !col_items[i].alive {
+			continue
+		}
+
+		if linalg.length(
+			   rl.Vector2{rect.x, rect.y} -
+			   rl.Vector2{col_items[i].position.x, col_items[i].position.y},
+		   ) <=
+		   f32(col_items[i].size + projectile_size) {
+			if rl.CheckCollisionRecs(
+				   rect,
+				    {
+					   col_items[i].position.x,
+					   col_items[i].position.y,
+					   f32(col_items[i].size),
+					   f32(col_items[i].size),
+				   },
+			   ) {
+				return true, EnemyId(i)
+			}
+		}
+	}
+
+	return false, EnemyId(0)
 }
 
 enemy_manager_destroy :: proc(self: ^EnemyManager) {

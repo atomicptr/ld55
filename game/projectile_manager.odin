@@ -1,0 +1,125 @@
+package game
+
+import "core:math/linalg"
+import rl "libs:raylib"
+
+projectiles_max :: 1024
+projectile_max_range :: 500.0
+projectile_size :: 4
+
+ProjectileId :: distinct uint
+
+Projectile :: struct {
+	position:       rl.Vector2,
+	origin:         rl.Vector2,
+	direction:      rl.Vector2,
+	speed:          f32,
+	shot_by_player: bool,
+	alive:          bool,
+	color:          rl.Color,
+}
+
+ProjectileManager :: struct {
+	using collection: Collection(ProjectileId, Projectile, projectiles_max),
+	player:           ^Player,
+	em:               ^EnemyManager,
+}
+
+projectile_manager_create :: proc(
+	player: ^Player,
+	enemy_manager: ^EnemyManager,
+) -> ^ProjectileManager {
+	pm := new(ProjectileManager)
+	pm.player = player
+	pm.em = enemy_manager
+
+	return pm
+}
+
+projectile_manager_shoot :: proc(
+	using self: ^ProjectileManager,
+	from: rl.Vector2,
+	direction: rl.Vector2,
+	speed: f32,
+	shot_by_player: bool,
+) {
+	new_index, ok := col_new_id(&self.collection)
+	if !ok {
+		return
+	}
+
+	col_items[new_index] = Projectile {
+		from,
+		from,
+		direction,
+		speed,
+		shot_by_player,
+		true,
+		shot_by_player ? rl.BLUE : rl.PURPLE,
+	}
+}
+
+projectile_manager_update :: proc(using self: ^ProjectileManager, dt: f32) {
+	for i in 0 ..< col_index {
+		if !col_items[i].alive {
+			continue
+		}
+
+		has_collided, enemy_id := is_colliding(self, ProjectileId(i))
+		if has_collided {
+			if col_items[i].shot_by_player {
+				broker_post(b, .EnemyGotHit, EnemyMsg{enemy_id})
+			} else {
+				broker_post(b, .PlayerGotHit, EmptyMsg{})
+			}
+			projectile_manager_kill(self, i)
+			return
+		}
+
+		if linalg.length(col_items[i].position - col_items[i].origin) > projectile_max_range {
+			projectile_manager_kill(self, i)
+			return
+		}
+
+		col_items[i].position += col_items[i].direction * col_items[i].speed * dt
+	}
+}
+
+projectile_manager_draw :: proc(using self: ^ProjectileManager) {
+	for i in 0 ..< col_index {
+		if !col_items[i].alive {
+			continue
+		}
+
+		rl.DrawRectangleRec(
+			{col_items[i].position.x, col_items[i].position.y, projectile_size, projectile_size},
+			col_items[i].color,
+		)
+	}
+}
+
+@(private = "file")
+projectile_manager_kill :: proc(using self: ^ProjectileManager, projectile: ProjectileId) {
+	col_free_id(&self.collection, projectile)
+}
+
+@(private = "file")
+is_colliding :: proc(using self: ^ProjectileManager, projectile: ProjectileId) -> (bool, EnemyId) {
+	p := col_items[projectile]
+
+	if !p.shot_by_player {
+		return rl.CheckCollisionRecs(
+			{p.position.x, p.position.y, projectile_size, projectile_size},
+			{player.position.x, player.position.y, player_size, player_size},
+		), EnemyId(0)
+	}
+
+	return enemy_manager_is_colliding(
+		em,
+		{p.position.x, p.position.y, projectile_size, projectile_size},
+	)
+}
+
+projectile_manager_destroy :: proc(using self: ^ProjectileManager) {
+	free(self)
+}
