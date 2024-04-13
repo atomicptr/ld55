@@ -1,10 +1,10 @@
 package game
 
-import rl "libs:/raylib"
+import rl "libs:raylib"
 
-title :: "Odin Raylib Web Starter"
-window_width :: 800
-window_height :: 800
+title :: "LD55"
+window_width :: 1280
+window_height :: 720
 
 Game :: struct {
 	box_pos: rl.Vector2,
