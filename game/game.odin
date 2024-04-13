@@ -1,17 +1,24 @@
 package game
 
 import "core:fmt"
+import "core:math"
+import "core:math/linalg"
+import "core:math/rand"
 import "core:mem"
 import rl "libs:raylib"
 
 title :: "LD55"
 window_width :: 1280
 window_height :: 720
+zoom :: 2.0
+
+enemy_spawn_time :: 1.0
 
 Game :: struct {
-	player: ^Player,
-	em:     ^EnemyManager,
-	camera: rl.Camera2D,
+	player:            ^Player,
+	em:                ^EnemyManager,
+	enemy_spawn_timer: Timer,
+	camera:            rl.Camera2D,
 }
 
 main :: proc() {
@@ -61,23 +68,41 @@ create :: proc() -> Game {
 		{window_width / 2 - player_size / 2, window_height / 2 - player_size / 2},
 		0,
 		0,
-		2.0,
+		zoom,
 	}
 	game.em = enemy_manager_create(game.player)
+	game.enemy_spawn_timer = timer_create(enemy_spawn_time)
 	return game
 }
 
 update :: proc(using game: ^Game) {
 	dt := rl.GetFrameTime()
 
-	if rl.IsKeyPressed(rl.KeyboardKey.SPACE) {
-		enemy_spawn(em, EnemyType.Grunt)
+	timer_update(&enemy_spawn_timer, dt)
+
+	if enemy_spawn_timer.finished {
+		enemy_spawn(
+			em,
+			EnemyType.Grunt,
+			create_random_position_outside_of_bounds(
+				{player.position.x, player.position.y, window_width / zoom, window_height / zoom},
+			),
+		)
+		timer_reset(&enemy_spawn_timer)
 	}
 
 	camera.target = player.position
 
 	enemy_manager_update(em, dt)
 	player_update(player, dt)
+}
+
+create_random_position_outside_of_bounds :: proc(bounds: rl.Rectangle) -> rl.Vector2 {
+	direction := linalg.normalize(
+		rl.Vector2{rand.float32_range(-1.0, 1.0), rand.float32_range(-1.0, 1.0)},
+	)
+
+	return {bounds.x, bounds.y} + direction * {100 + bounds.width * 0.5, 100 + bounds.height * 0.5}
 }
 
 draw :: proc(using game: ^Game) {
@@ -97,6 +122,7 @@ draw :: proc(using game: ^Game) {
 	}
 
 	rl.DrawFPS(10, 10)
+	rl.DrawText(fmt.ctprintf("Enemies: %d", em.enemy_index), 10, 30, 20, rl.BLACK)
 }
 
 destroy :: proc(game: ^Game) {
