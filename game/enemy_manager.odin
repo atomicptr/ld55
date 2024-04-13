@@ -121,7 +121,7 @@ enemy_manager_update :: proc(using self: ^EnemyManager, dt: f32) {
 			   },
 			   {player.position.x, player.position.y, player_size, player_size},
 		   ) {
-			fmt.println(i, "collided with player")
+			broker_post(b, .PlayerGotHit, ByEnemyMsg{enemies[i]})
 		}
 
 		// update position

@@ -6,8 +6,8 @@ Timer :: struct {
 	finished:  bool,
 }
 
-timer_create :: proc(threshold: f32) -> Timer {
-	return {threshold, 0.0, false}
+timer_create :: proc(threshold: f32, autostart: bool = true) -> Timer {
+	return {threshold, 0.0, !autostart}
 }
 
 timer_update :: proc(using self: ^Timer, dt: f32) {

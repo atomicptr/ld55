@@ -51,7 +51,11 @@ main :: proc() {
 
 	rl.SetTargetFPS(60)
 
+	b = broker_create()
+
 	game := create()
+	broker_register(b, .PlayerGotHit, &game, game_on_message)
+	broker_register(b, .PlayerDied, &game, game_on_message)
 
 	for !rl.WindowShouldClose() {
 		update(&game)
@@ -59,6 +63,19 @@ main :: proc() {
 	}
 
 	destroy(&game)
+}
+
+game_on_message :: proc(receiver: rawptr, msg_type: MessageType, msg_data: MessageData) {
+	game := cast(^Game)receiver
+
+	#partial switch msg_type {
+	case .PlayerDied:
+		fmt.println("YOU LOST")
+	case .PlayerGotHit:
+		data := msg_data.(ByEnemyMsg)
+		// TODO: maybe do something with the enemy type?
+		player_process_hit(game.player)
+	}
 }
 
 create :: proc() -> Game {
@@ -76,6 +93,8 @@ create :: proc() -> Game {
 }
 
 update :: proc(using game: ^Game) {
+	broker_process_messages(b)
+
 	dt := rl.GetFrameTime()
 
 	timer_update(&enemy_spawn_timer, dt)
@@ -129,4 +148,5 @@ draw :: proc(using game: ^Game) {
 destroy :: proc(game: ^Game) {
 	enemy_manager_destroy(game.em)
 	player_destroy(game.player)
+	broker_destroy(b)
 }
