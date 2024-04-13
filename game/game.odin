@@ -17,6 +17,7 @@ enemy_spawn_time :: 0.2
 Game :: struct {
 	player:            ^Player,
 	em:                ^EnemyManager,
+	mm:                ^MinionManager,
 	pm:                ^ProjectileManager,
 	enemy_spawn_timer: Timer,
 	camera:            rl.Camera2D,
@@ -100,6 +101,7 @@ create :: proc() -> Game {
 	}
 	game.em = enemy_manager_create(game.player)
 	game.pm = projectile_manager_create(game.player, game.em)
+	game.mm = minion_manager_create(game.player, game.em, game.pm)
 	game.enemy_spawn_timer = timer_create(enemy_spawn_time)
 	return game
 }
@@ -112,7 +114,7 @@ update :: proc(using game: ^Game) {
 	timer_update(&enemy_spawn_timer, dt)
 
 	if rl.IsKeyPressed(rl.KeyboardKey.SPACE) {
-		projectile_manager_shoot(pm, player.position, {0, -1}, 100.0, true)
+		minion_manager_spawn(mm, .Shooter, player.position)
 	}
 
 	if enemy_spawn_timer.finished {
@@ -129,6 +131,7 @@ update :: proc(using game: ^Game) {
 	camera.target = player.position
 
 	enemy_manager_update(em, dt)
+	minion_manager_update(mm, dt)
 	projectile_manager_update(pm, dt)
 	player_update(player, dt)
 }
@@ -154,18 +157,23 @@ draw :: proc(using game: ^Game) {
 		rl.DrawRectangleRec({100, 100, 100, 100}, rl.GRAY)
 
 		enemy_manager_draw(em)
+		minion_manager_draw(mm)
 		projectile_manager_draw(pm)
 		player_draw(player)
 	}
 
-	rl.DrawFPS(10, 10)
-	rl.DrawText(fmt.ctprintf("Health: %d", player.health), 10, 30, 20, rl.BLACK)
-	rl.DrawText(fmt.ctprintf("Enemies: %d", em.col_count), 10, 50, 20, rl.BLACK)
-	rl.DrawText(fmt.ctprintf("Projectile: %d", pm.col_count), 10, 70, 20, rl.BLACK)
+	when ODIN_DEBUG {
+		rl.DrawFPS(10, 10)
+		rl.DrawText(fmt.ctprintf("Health: %d", player.health), 10, 30, 20, rl.BLACK)
+		rl.DrawText(fmt.ctprintf("Enemies: %d", em.col_count), 10, 50, 20, rl.BLACK)
+		rl.DrawText(fmt.ctprintf("Minions: %d", mm.col_count), 10, 70, 20, rl.BLACK)
+		rl.DrawText(fmt.ctprintf("Projectile: %d", pm.col_count), 10, 90, 20, rl.BLACK)
+	}
 }
 
 destroy :: proc(game: ^Game) {
 	projectile_manager_destroy(game.pm)
+	minion_manager_destroy(game.mm)
 	enemy_manager_destroy(game.em)
 	player_destroy(game.player)
 	broker_destroy(b)

@@ -3,20 +3,22 @@ package game
 import "core:math/linalg"
 import rl "libs:raylib"
 
-projectiles_max :: 1024
+projectiles_max :: 2048
 projectile_max_range :: 500.0
 projectile_size :: 4
+projectile_timer_threshold :: 5.0
 
 ProjectileId :: distinct uint
 
 Projectile :: struct {
+	id:             ProjectileId,
 	position:       rl.Vector2,
-	origin:         rl.Vector2,
 	direction:      rl.Vector2,
 	speed:          f32,
 	shot_by_player: bool,
 	alive:          bool,
 	color:          rl.Color,
+	timer:          Timer,
 }
 
 ProjectileManager :: struct {
@@ -49,13 +51,14 @@ projectile_manager_shoot :: proc(
 	}
 
 	col_items[new_index] = Projectile {
+		ProjectileId(new_index),
 		from,
-		from,
-		direction,
+		linalg.normalize(direction),
 		speed,
 		shot_by_player,
 		true,
 		shot_by_player ? rl.BLUE : rl.PURPLE,
+		timer_create(projectile_timer_threshold, true),
 	}
 }
 
@@ -65,6 +68,13 @@ projectile_manager_update :: proc(using self: ^ProjectileManager, dt: f32) {
 			continue
 		}
 
+		timer_update(&col_items[i].timer, dt)
+
+		if col_items[i].timer.finished {
+			projectile_manager_kill(self, i)
+			return
+		}
+
 		has_collided, enemy_id := is_colliding(self, ProjectileId(i))
 		if has_collided {
 			if col_items[i].shot_by_player {
@@ -72,11 +82,7 @@ projectile_manager_update :: proc(using self: ^ProjectileManager, dt: f32) {
 			} else {
 				broker_post(b, .PlayerGotHit, EmptyMsg{})
 			}
-			projectile_manager_kill(self, i)
-			return
-		}
 
-		if linalg.length(col_items[i].position - col_items[i].origin) > projectile_max_range {
 			projectile_manager_kill(self, i)
 			return
 		}

@@ -57,60 +57,6 @@ enemy_spawn :: proc(using self: ^EnemyManager, type: EnemyType, position: rl.Vec
 	}
 }
 
-boids :: proc(using self: ^EnemyManager, me: EnemyId) -> rl.Vector2 {
-	return boids_rule1(self, me) + boids_rule2(self, me) + boids_rule3(self, me)
-}
-
-boids_rule1 :: proc(using self: ^EnemyManager, me: EnemyId) -> rl.Vector2 {
-	sum := rl.Vector2(0)
-
-	for i in 0 ..< col_index {
-		if me == EnemyId(i) || !col_items[i].alive {
-			continue
-		}
-
-		sum += col_items[i].position
-	}
-
-	center_of_mass := sum / f32(col_count)
-
-	return direction_to(col_items[me].position, center_of_mass) / 100
-}
-
-boids_rule2 :: proc(using self: ^EnemyManager, me: EnemyId) -> rl.Vector2 {
-	threshold :: 15.0
-
-	c := rl.Vector2(0)
-
-	for i in 0 ..< col_index {
-		if me == EnemyId(i) || !col_items[i].alive {
-			continue
-		}
-
-		if linalg.length(col_items[i].position - col_items[me].position) < threshold {
-			c -= col_items[i].position - col_items[me].position
-		}
-	}
-
-	return c
-}
-
-boids_rule3 :: proc(using self: ^EnemyManager, me: EnemyId) -> rl.Vector2 {
-	vel := rl.Vector2(0)
-
-	for i in 0 ..< col_index {
-		if me == EnemyId(i) || !col_items[i].alive {
-			continue
-		}
-
-		vel += col_items[i].velocity
-	}
-
-	vel /= f32(col_count)
-
-	return (vel - col_items[me].velocity) / 8
-}
-
 enemy_manager_update :: proc(using self: ^EnemyManager, dt: f32) {
 	for i in 0 ..< col_index {
 		if !col_items[i].alive {
@@ -131,7 +77,7 @@ enemy_manager_update :: proc(using self: ^EnemyManager, dt: f32) {
 		}
 
 		// update position
-		boids_vec := boids(self, col_items[i].id)
+		boids_vec := boids(&self.collection, col_items[i].id, {20.0, nil})
 
 		direction := direction_to(col_items[i].position, player.position) + boids_vec
 
@@ -182,22 +128,17 @@ enemy_manager_is_colliding :: proc(
 			continue
 		}
 
-		if linalg.length(
-			   rl.Vector2{rect.x, rect.y} -
-			   rl.Vector2{col_items[i].position.x, col_items[i].position.y},
-		   ) <=
-		   f32(col_items[i].size + projectile_size) {
-			if rl.CheckCollisionRecs(
-				   rect,
-				    {
-					   col_items[i].position.x,
-					   col_items[i].position.y,
-					   f32(col_items[i].size),
-					   f32(col_items[i].size),
-				   },
-			   ) {
-				return true, EnemyId(i)
-			}
+
+		if rl.CheckCollisionRecs(
+			   rect,
+			    {
+				   col_items[i].position.x,
+				   col_items[i].position.y,
+				   f32(col_items[i].size),
+				   f32(col_items[i].size),
+			   },
+		   ) {
+			return true, EnemyId(i)
 		}
 	}
 
