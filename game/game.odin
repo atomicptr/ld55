@@ -10,6 +10,7 @@ window_height :: 720
 
 Game :: struct {
 	player: ^Player,
+	em:     ^EnemyManager,
 	camera: rl.Camera2D,
 }
 
@@ -56,15 +57,26 @@ main :: proc() {
 create :: proc() -> Game {
 	game := Game{}
 	game.player = player_create()
-	game.camera = rl.Camera2D{{window_width / 2 - 4, window_height / 2 - 4}, 0, 0, 2.0}
+	game.camera = rl.Camera2D {
+		{window_width / 2 - player_size / 2, window_height / 2 - player_size / 2},
+		0,
+		0,
+		2.0,
+	}
+	game.em = enemy_manager_create(game.player)
 	return game
 }
 
 update :: proc(using game: ^Game) {
 	dt := rl.GetFrameTime()
 
+	if rl.IsKeyPressed(rl.KeyboardKey.SPACE) {
+		enemy_spawn(em, EnemyType.Grunt)
+	}
+
 	camera.target = player.position
 
+	enemy_manager_update(em, dt)
 	player_update(player, dt)
 }
 
@@ -80,6 +92,7 @@ draw :: proc(using game: ^Game) {
 
 		rl.DrawRectangleRec({100, 100, 100, 100}, rl.GRAY)
 
+		enemy_manager_draw(em)
 		player_draw(player)
 	}
 
@@ -87,5 +100,6 @@ draw :: proc(using game: ^Game) {
 }
 
 destroy :: proc(game: ^Game) {
+	enemy_manager_destroy(game.em)
 	player_destroy(game.player)
 }

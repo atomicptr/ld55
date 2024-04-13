@@ -6,6 +6,7 @@ import rl "libs:raylib"
 player_max_speed :: 2.0
 player_acceleration :: 12.5
 player_friction :: player_acceleration
+player_size :: 8
 
 Player :: struct {
 	position: rl.Vector2,
@@ -54,7 +55,7 @@ player_update :: proc(using self: ^Player, dt: f32) {
 }
 
 player_draw :: proc(using self: ^Player) {
-	rl.DrawRectangleRec({position.x, position.y, 8, 8}, rl.GREEN)
+	rl.DrawRectangleRec({position.x, position.y, player_size, player_size}, rl.GREEN)
 }
 
 player_destroy :: proc(self: ^Player) {
