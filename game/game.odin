@@ -122,7 +122,8 @@ draw :: proc(using game: ^Game) {
 	}
 
 	rl.DrawFPS(10, 10)
-	rl.DrawText(fmt.ctprintf("Enemies: %d", em.enemy_index), 10, 30, 20, rl.BLACK)
+	rl.DrawText(fmt.ctprintf("Health: %d", player.health), 10, 30, 20, rl.BLACK)
+	rl.DrawText(fmt.ctprintf("Enemies: %d", em.enemy_index), 10, 50, 20, rl.BLACK)
 }
 
 destroy :: proc(game: ^Game) {

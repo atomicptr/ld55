@@ -11,6 +11,7 @@ player_size :: 8
 Player :: struct {
 	position: rl.Vector2,
 	velocity: rl.Vector2,
+	health:   uint,
 }
 
 player_create :: proc() -> ^Player {

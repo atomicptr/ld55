@@ -21,6 +21,7 @@ Enemy :: struct {
 	position:     rl.Vector2,
 	velocity:     rl.Vector2,
 	acceleration: f32,
+	size:         uint,
 }
 
 EnemyManager :: struct {
@@ -41,6 +42,8 @@ enemy_spawn :: proc(using self: ^EnemyManager, type: EnemyType, position: rl.Vec
 		return
 	}
 
+	// TODO: depending on type define size and speed
+
 	enemies[enemy_index] = Enemy {
 		enemy_index,
 		type,
@@ -48,6 +51,7 @@ enemy_spawn :: proc(using self: ^EnemyManager, type: EnemyType, position: rl.Vec
 		position,
 		{0, 0},
 		rand.float32_range(enemy_acceleration_min, enemy_acceleration_max),
+		8,
 	}
 	enemy_index += 1
 }
@@ -107,6 +111,20 @@ boids_rule3 :: proc(using self: ^EnemyManager, me: uint) -> rl.Vector2 {
 
 enemy_manager_update :: proc(using self: ^EnemyManager, dt: f32) {
 	for i in 0 ..< enemy_index {
+		// check if an enemy collides with player
+		if rl.CheckCollisionRecs(
+			    {
+				   enemies[i].position.x,
+				   enemies[i].position.y,
+				   f32(enemies[i].size),
+				   f32(enemies[i].size),
+			   },
+			   {player.position.x, player.position.y, player_size, player_size},
+		   ) {
+			fmt.println(i, "collided with player")
+		}
+
+		// update position
 		boids_vec := boids(self, enemies[i].id)
 
 		direction := direction_to(enemies[i].position, player.position) + boids_vec
@@ -116,7 +134,6 @@ enemy_manager_update :: proc(using self: ^EnemyManager, dt: f32) {
 			direction,
 			enemies[i].acceleration * dt,
 		)
-		// enemies[i].velocity += boids_vec
 		enemies[i].position += enemies[i].velocity
 	}
 }
@@ -125,12 +142,15 @@ enemy_manager_draw :: proc(using self: ^EnemyManager) {
 	for i in 0 ..< enemy_index {
 		enemy := &enemies[i]
 
-		rl.DrawRectangleRec({enemy.position.x, enemy.position.y, 8, 8}, rl.RED)
+		rl.DrawRectangleRec(
+			{enemy.position.x, enemy.position.y, f32(enemies[i].size), f32(enemies[i].size)},
+			rl.RED,
+		)
 		rl.DrawLine(
-			i32(enemy.position.x + 4),
-			i32(enemy.position.y + 4),
-			i32(enemy.position.x + 4 + enemy.velocity.x * 10),
-			i32(enemy.position.y + 4 + enemy.velocity.y * 10),
+			i32(enemy.position.x + f32(enemy.size) * 0.5),
+			i32(enemy.position.y + f32(enemy.size) * 0.5),
+			i32(enemy.position.x + f32(enemy.size) * 0.5 + enemy.velocity.x * 10),
+			i32(enemy.position.y + f32(enemy.size) * 0.5 + enemy.velocity.y * 10),
 			rl.GREEN,
 		)
 	}
