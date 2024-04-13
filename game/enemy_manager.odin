@@ -123,11 +123,15 @@ enemy_manager_is_colliding :: proc(
 	bool,
 	EnemyId,
 ) {
+	id := EnemyId(0)
+	dist := max(f32)
+
 	for i in 0 ..< col_index {
 		if !col_items[i].alive {
 			continue
 		}
 
+		dist_to := linalg.distance(rl.Vector2{rect.x, rect.y}, col_items[i].position)
 
 		if rl.CheckCollisionRecs(
 			   rect,
@@ -138,8 +142,18 @@ enemy_manager_is_colliding :: proc(
 				   f32(col_items[i].size),
 			   },
 		   ) {
-			return true, EnemyId(i)
+			if dist_to < dist {
+				dist = dist_to
+				id = EnemyId(i)
+			}
+
+			// return true, EnemyId(i)
+
 		}
+	}
+
+	if dist < max(f32) {
+		return true, id
 	}
 
 	return false, EnemyId(0)
