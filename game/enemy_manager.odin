@@ -15,6 +15,7 @@ EnemyType :: enum {
 }
 
 Enemy :: struct {
+	id:           uint,
 	type:         EnemyType,
 	alive:        bool,
 	position:     rl.Vector2,
@@ -41,6 +42,7 @@ enemy_spawn :: proc(using self: ^EnemyManager, type: EnemyType, position: rl.Vec
 	}
 
 	enemies[enemy_index] = Enemy {
+		enemy_index,
 		type,
 		true,
 		position,
@@ -50,26 +52,87 @@ enemy_spawn :: proc(using self: ^EnemyManager, type: EnemyType, position: rl.Vec
 	enemy_index += 1
 }
 
-enemy_manager_update :: proc(using self: ^EnemyManager, dt: f32) {
-	for &enemy in enemies {
-		if !enemy.alive {
+boids :: proc(using self: ^EnemyManager, me: uint) -> rl.Vector2 {
+	return boids_rule1(self, me) + boids_rule2(self, me) + boids_rule3(self, me)
+}
+
+boids_rule1 :: proc(using self: ^EnemyManager, me: uint) -> rl.Vector2 {
+	sum := rl.Vector2(0)
+
+	for i in 0 ..< enemy_index {
+		if me == uint(i) {
+			continue
+		}
+		sum += enemies[enemy_index].position
+	}
+
+	center_of_mass := sum / f32(enemy_index - 1)
+
+	return direction_to(enemies[me].position, center_of_mass) / 100
+}
+
+boids_rule2 :: proc(using self: ^EnemyManager, me: uint) -> rl.Vector2 {
+	threshold :: 15.0
+
+	c := rl.Vector2(0)
+
+	for i in 0 ..< enemy_index {
+		if me == uint(i) {
 			continue
 		}
 
-		direction := direction_to(enemy.position, player.position)
+		if linalg.length(enemies[i].position - enemies[me].position) < threshold {
+			c -= enemies[i].position - enemies[me].position
+		}
+	}
 
-		enemy.velocity = rl.Vector2MoveTowards(enemy.velocity, direction, enemy.acceleration * dt)
-		enemy.position += enemy.velocity
+	return c
+}
+
+boids_rule3 :: proc(using self: ^EnemyManager, me: uint) -> rl.Vector2 {
+	vel := rl.Vector2(0)
+
+	for i in 0 ..< enemy_index {
+		if me == uint(i) {
+			continue
+		}
+
+		vel += enemies[enemy_index].velocity
+	}
+
+	vel /= f32(enemy_index - 1)
+
+	return (vel - enemies[enemy_index].velocity) / 8
+}
+
+enemy_manager_update :: proc(using self: ^EnemyManager, dt: f32) {
+	for i in 0 ..< enemy_index {
+		boids_vec := boids(self, enemies[i].id)
+
+		direction := direction_to(enemies[i].position, player.position) + boids_vec
+
+		enemies[i].velocity = rl.Vector2MoveTowards(
+			enemies[i].velocity,
+			direction,
+			enemies[i].acceleration * dt,
+		)
+		// enemies[i].velocity += boids_vec
+		enemies[i].position += enemies[i].velocity
 	}
 }
 
 enemy_manager_draw :: proc(using self: ^EnemyManager) {
-	for enemy in enemies {
-		if !enemy.alive {
-			continue
-		}
+	for i in 0 ..< enemy_index {
+		enemy := &enemies[i]
 
 		rl.DrawRectangleRec({enemy.position.x, enemy.position.y, 8, 8}, rl.RED)
+		rl.DrawLine(
+			i32(enemy.position.x + 4),
+			i32(enemy.position.y + 4),
+			i32(enemy.position.x + 4 + enemy.velocity.x * 10),
+			i32(enemy.position.y + 4 + enemy.velocity.y * 10),
+			rl.GREEN,
+		)
 	}
 }
 

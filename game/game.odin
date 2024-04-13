@@ -12,7 +12,7 @@ window_width :: 1280
 window_height :: 720
 zoom :: 2.0
 
-enemy_spawn_time :: 1.0
+enemy_spawn_time :: 0.2
 
 Game :: struct {
 	player:            ^Player,
