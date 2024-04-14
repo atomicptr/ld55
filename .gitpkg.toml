@@ -1,0 +1,8 @@
+[[packages.libs]]
+name = "anima"
+url = "git@github.com:atomicptr/anima.git"
+package-root = "anima"
+
+[[destinations]]
+name = "libs"
+path = "libs"

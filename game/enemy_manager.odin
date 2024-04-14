@@ -52,10 +52,26 @@ EnemyManager :: struct {
 	using collection: Collection(EnemyId, Enemy, enemies_max),
 	player:           ^Player,
 	pm:               ^ProjectileManager,
+	texture_grunt:    rl.Texture,
+	texture_shooter:  rl.Texture,
+	texture_boss:     rl.Texture,
 }
 
 enemy_manager_create :: proc() -> ^EnemyManager {
 	em := new(EnemyManager)
+
+	img_grunt := rl.LoadImage("assets/sprites/enemy.png")
+	defer rl.UnloadImage(img_grunt)
+	em.texture_grunt = rl.LoadTextureFromImage(img_grunt)
+
+	img_shooter := rl.LoadImage("assets/sprites/enemy_shooter.png")
+	defer rl.UnloadImage(img_shooter)
+	em.texture_shooter = rl.LoadTextureFromImage(img_shooter)
+
+	img_boss := rl.LoadImage("assets/sprites/boss.png")
+	defer rl.UnloadImage(img_boss)
+	em.texture_boss = rl.LoadTextureFromImage(img_boss)
+
 	return em
 }
 
@@ -130,7 +146,7 @@ enemy_manager_update :: proc(using self: ^EnemyManager, dt: f32) {
 }
 
 enemy_manager_process_grunt :: proc(using self: ^EnemyManager, i: EnemyId, dt: f32) {
-	boids_vec := boids(&self.collection, col_items[i].id, {20.0, nil})
+	boids_vec := boids(&self.collection, col_items[i].id, {15.0, nil})
 
 	direction := direction_to(col_items[i].position, player.position) + boids_vec
 
@@ -144,7 +160,7 @@ enemy_manager_process_grunt :: proc(using self: ^EnemyManager, i: EnemyId, dt: f
 enemy_manager_process_shooter :: proc(using self: ^EnemyManager, i: EnemyId, dt: f32) {
 	timer_update(&col_items[i].shoot_timer, dt)
 
-	if linalg.distance(player.position, col_items[i].position) > 200.0 {
+	if linalg.distance(player.position, col_items[i].position) > 100.0 {
 		enemy_manager_process_grunt(self, i, dt)
 		return
 	}
@@ -178,7 +194,7 @@ enemy_manager_process_shooter :: proc(using self: ^EnemyManager, i: EnemyId, dt:
 enemy_manager_process_boss :: proc(using self: ^EnemyManager, i: EnemyId, dt: f32) {
 	timer_update(&col_items[i].shoot_timer, dt)
 
-	if linalg.distance(player.position, col_items[i].position) > 250.0 {
+	if linalg.distance(player.position, col_items[i].position) > 100.0 {
 		direction := direction_to(col_items[i].position, player.position)
 
 		col_items[i].velocity = rl.Vector2MoveTowards(
@@ -209,7 +225,7 @@ enemy_manager_process_boss :: proc(using self: ^EnemyManager, i: EnemyId, dt: f3
 			direction_to(col_items[i].position, player_pos + player_vel * aim_delta_time),
 			projectile_speed / 2,
 			false,
-			8.0,
+			4.0,
 		)
 
 		timer_reset(&col_items[i].shoot_timer)
@@ -224,9 +240,15 @@ enemy_manager_draw :: proc(using self: ^EnemyManager) {
 
 		enemy := &col_items[i]
 
-		rl.DrawRectangleRec(
-			{enemy.position.x, enemy.position.y, f32(col_items[i].size), f32(col_items[i].size)},
-			rl.RED,
+		rl.DrawTexturePro(
+			enemy.type == .Grunt \
+			? texture_grunt \
+			: enemy.type == .Shooter ? texture_shooter : texture_boss,
+			{0, 0, f32(enemy.size), f32(enemy.size)},
+			{enemy.position.x, enemy.position.y, f32(enemy.size), f32(enemy.size)},
+			{0, 0},
+			0.0,
+			rl.WHITE,
 		)
 
 		when ODIN_DEBUG {
@@ -322,6 +344,9 @@ enemy_manager_reset :: proc(using self: ^EnemyManager) {
 	}
 }
 
-enemy_manager_destroy :: proc(self: ^EnemyManager) {
+enemy_manager_destroy :: proc(using self: ^EnemyManager) {
+	rl.UnloadTexture(texture_grunt)
+	rl.UnloadTexture(texture_shooter)
+	rl.UnloadTexture(texture_boss)
 	free(self)
 }

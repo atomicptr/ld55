@@ -1,0 +1,4 @@
+[submodule "anima_56a90ba"]
+	url = git@github.com:atomicptr/anima.git
+	path = .gitpkgs/anima_56a90ba
+	update = none

@@ -21,3 +21,8 @@ run:
 	rm -rf out/debug
 	mkdir -p out/debug/desktop
 	odin run $(PACKAGE) --collection:libs=libs -out:"out/debug/desktop/$(PACKAGE)" -debug
+
+build-release:
+	rm -rf out/release
+	mkdir -p out/release/desktop
+	odin build $(PACKAGE) --collection:libs=libs -out:"out/debug/desktop/$(PACKAGE)"

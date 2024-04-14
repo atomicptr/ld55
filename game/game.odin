@@ -10,7 +10,7 @@ import rl "libs:raylib"
 title :: "LD55 :: The Last Summoner"
 window_width :: 1280
 window_height :: 720
-zoom :: 2.0
+zoom :: 3.0
 
 rando_drop_spawn_time :: 15.0
 upgrade_enemy_kill_threshold :: 15
@@ -23,9 +23,9 @@ GameStage :: enum {
 	Stage4,
 }
 
-game_time_stage1_threshold :: 30.0
-game_time_stage2_threshold :: 60.0
-game_time_stage3_threshold :: 90.0
+game_time_stage1_threshold :: 20.0
+game_time_stage2_threshold :: 40.0
+game_time_stage3_threshold :: 60.0
 
 game_stage_enemy_spawn_timer := [GameStage]f32 {
 	.Stage1 = 0.2,
@@ -396,13 +396,11 @@ draw :: proc(using game: ^Game) {
 	rl.BeginDrawing()
 	defer rl.EndDrawing()
 
-	rl.ClearBackground(rl.RAYWHITE)
+	rl.ClearBackground(rl.GRAY)
 
 	{
 		rl.BeginMode2D(camera)
 		defer rl.EndMode2D()
-
-		rl.DrawRectangleRec({100, 100, 100, 100}, rl.GRAY)
 
 		enemy_manager_draw(em)
 		minion_manager_draw(mm)

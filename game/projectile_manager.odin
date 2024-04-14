@@ -5,7 +5,7 @@ import rl "libs:raylib"
 
 projectiles_max :: 4096
 projectile_max_range :: 500.0
-projectile_size :: 4
+projectile_size :: 2
 projectile_timer_threshold :: 5.0
 projectile_speed :: 200.0
 

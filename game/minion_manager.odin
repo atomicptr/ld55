@@ -30,10 +30,17 @@ MinionManager :: struct {
 	player:           ^Player,
 	em:               ^EnemyManager,
 	pm:               ^ProjectileManager,
+	texture:          rl.Texture,
 }
 
 minion_manager_create :: proc() -> ^MinionManager {
 	mm := new(MinionManager)
+
+	img := rl.LoadImage("assets/sprites/minion.png")
+	defer rl.UnloadImage(img)
+
+	mm.texture = rl.LoadTextureFromImage(img)
+
 	return mm
 }
 
@@ -122,7 +129,12 @@ minion_manager_draw :: proc(using self: ^MinionManager) {
 			continue
 		}
 
-		rl.DrawCircle(i32(col_items[i].position.x), i32(col_items[i].position.y), 4, rl.DARKGREEN)
+		rl.DrawTexture(
+			texture,
+			i32(col_items[i].position.x),
+			i32(col_items[i].position.y),
+			rl.WHITE,
+		)
 
 		when ODIN_DEBUG {
 			rl.DrawLine(
@@ -146,5 +158,6 @@ minion_manager_reset :: proc(using self: ^MinionManager) {
 }
 
 minion_manager_destroy :: proc(using self: ^MinionManager) {
+	rl.UnloadTexture(texture)
 	free(self)
 }

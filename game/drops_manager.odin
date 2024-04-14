@@ -40,10 +40,17 @@ Drop :: struct {
 DropsManager :: struct {
 	using collection: Collection(DropId, Drop, drops_max),
 	player:           ^Player,
+	texture:          rl.Texture,
 }
 
 drops_manager_create :: proc() -> ^DropsManager {
 	dm := new(DropsManager)
+
+	img := rl.LoadImage("assets/sprites/drops.png")
+	defer rl.UnloadImage(img)
+
+	dm.texture = rl.LoadTextureFromImage(img)
+
 	return dm
 }
 
@@ -114,11 +121,13 @@ drops_manager_draw :: proc(using self: ^DropsManager) {
 			continue
 		}
 
-		rl.DrawCircle(
-			i32(col_items[i].position.x),
-			i32(col_items[i].position.y),
-			drop_size,
-			rl.DARKPURPLE,
+		rl.DrawTexturePro(
+			texture,
+			{col_items[i].type == .Health ? 8.0 : 0.0, 0.0, 8.0, 8.0},
+			{col_items[i].position.x, col_items[i].position.y, 8.0, 8.0},
+			{0, 0},
+			0.0,
+			rl.WHITE,
 		)
 
 		if col_items[i].has_arrows && arrows < drop_max_arrows {
@@ -133,7 +142,7 @@ drops_manager_draw :: proc(using self: ^DropsManager) {
 			rl.DrawLineEx(
 				from + line * drop_arrow_offset,
 				to - line * drop_arrow_offset,
-				1.0,
+				0.5,
 				rl.GREEN,
 			)
 
@@ -156,5 +165,6 @@ drops_manager_reset :: proc(using self: ^DropsManager) {
 }
 
 drops_manager_destroy :: proc(using self: ^DropsManager) {
+	rl.UnloadTexture(texture)
 	free(self)
 }
