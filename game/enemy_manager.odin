@@ -12,6 +12,7 @@ enemy_acceleration_min :: 1.0
 enemy_acceleration_max :: 4.0
 enemy_iframe_duration :: 1.0
 enemy_shoot_cooldown :: 0.5
+boss_shoot_cooldown :: 0.25
 
 EnemyType :: enum {
 	Grunt,
@@ -24,7 +25,7 @@ EnemyId :: distinct uint
 enemy_type_max_hp := [EnemyType]uint {
 	.Grunt   = 1,
 	.Shooter = 3,
-	.Boss    = 50,
+	.Boss    = 9,
 }
 
 enemy_type_size := [EnemyType]uint {
@@ -84,7 +85,10 @@ enemy_spawn :: proc(using self: ^EnemyManager, type: EnemyType, position: rl.Vec
 	col_items[new_index].health = enemy_type_max_hp[type]
 	col_items[new_index].iframe_active = false
 	col_items[new_index].iframe = timer_create(enemy_iframe_duration, false)
-	col_items[new_index].shoot_timer = timer_create(enemy_shoot_cooldown, false)
+	col_items[new_index].shoot_timer = timer_create(
+		type == .Boss ? boss_shoot_cooldown : enemy_shoot_cooldown,
+		false,
+	)
 }
 
 enemy_manager_update :: proc(using self: ^EnemyManager, dt: f32) {
@@ -169,11 +173,47 @@ enemy_manager_process_shooter :: proc(using self: ^EnemyManager, i: EnemyId, dt:
 	)
 
 	timer_reset(&col_items[i].shoot_timer)
-
 }
 
-enemy_manager_process_boss :: proc(using self: ^EnemyManager, id: EnemyId, dt: f32) {
+enemy_manager_process_boss :: proc(using self: ^EnemyManager, i: EnemyId, dt: f32) {
+	timer_update(&col_items[i].shoot_timer, dt)
 
+	if linalg.distance(player.position, col_items[i].position) > 250.0 {
+		direction := direction_to(col_items[i].position, player.position)
+
+		col_items[i].velocity = rl.Vector2MoveTowards(
+			col_items[i].velocity,
+			direction,
+			col_items[i].acceleration * dt,
+		)
+		return
+	}
+
+	if col_items[i].shoot_timer.finished {
+		col_items[i].velocity = {0, 0}
+
+		player_pos := player.position + {f32(player_size) / 2, f32(player_size) / 2}
+		player_vel := player.velocity
+
+		aim_delta_time := aim_ahead(
+			player_pos,
+			col_items[i].position,
+			player_vel,
+			player.velocity,
+			projectile_speed,
+		)
+
+		projectile_manager_shoot(
+			pm,
+			col_items[i].position,
+			direction_to(col_items[i].position, player_pos + player_vel * aim_delta_time),
+			projectile_speed / 2,
+			false,
+			8.0,
+		)
+
+		timer_reset(&col_items[i].shoot_timer)
+	}
 }
 
 enemy_manager_draw :: proc(using self: ^EnemyManager) {
@@ -222,7 +262,11 @@ enemy_manager_process_damage :: proc(
 }
 
 enemy_manager_kill :: proc(using self: ^EnemyManager, enemy_id: EnemyId) {
-	broker_post(b, .EnemyDied, AtLocationMsg{col_items[enemy_id].position})
+	broker_post(
+		b,
+		.EnemyDied,
+		EnemyDiedMsg{col_items[enemy_id].position, col_items[enemy_id].type},
+	)
 	col_free_id(&self.collection, enemy_id)
 }
 

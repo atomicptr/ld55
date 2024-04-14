@@ -14,20 +14,24 @@ zoom :: 2.0
 
 rando_drop_spawn_time :: 15.0
 upgrade_enemy_kill_threshold :: 15
+boss_respawn_time :: 60.0
 
 GameStage :: enum {
 	Stage1,
 	Stage2,
 	Stage3,
+	Stage4,
 }
 
 game_time_stage1_threshold :: 30.0
 game_time_stage2_threshold :: 60.0
+game_time_stage3_threshold :: 90.0
 
 game_stage_enemy_spawn_timer := [GameStage]f32 {
 	.Stage1 = 0.2,
 	.Stage2 = 0.1,
 	.Stage3 = 0.05,
+	.Stage4 = 0.05,
 }
 
 Game :: struct {
@@ -47,6 +51,8 @@ Game :: struct {
 	next_enemy_kill_threshold: uint,
 	za_warudo_timer:           Timer,
 	is_time_frozen:            bool,
+	is_boss_alive:             bool,
+	boss_spawn_timer:          Timer,
 }
 
 main :: proc() {
@@ -122,9 +128,17 @@ game_on_message :: proc(receiver: rawptr, msg_type: MessageType, msg_data: Messa
 		data := msg_data.(EnemyMsg)
 		enemy_manager_process_damage(game.em, data.enemy, game.player.position)
 	case .EnemyDied:
-		data := msg_data.(AtLocationMsg)
+		data := msg_data.(EnemyDiedMsg)
 		game.enemy_kill_counter += 1
 		drops_manager_rng_drop(game.dm, {.Health, .MinionShooter}, data.position)
+
+		if data.type == .Boss {
+			game.is_boss_alive = false
+			timer_reset(&game.boss_spawn_timer)
+
+			// grant player a boon when boss has died
+			game.enemy_kill_counter = game.next_enemy_kill_threshold
+		}
 	case .DropPickup:
 		data := msg_data.(DropPickupMsg)
 		switch data.type {
@@ -163,6 +177,7 @@ create :: proc() -> Game {
 	game.enemy_spawn_timer = timer_create(game_stage_enemy_spawn_timer[.Stage1])
 	game.rando_drop_timer = timer_create(rando_drop_spawn_time)
 	game.za_warudo_timer = timer_create(0.0, false)
+	game.boss_spawn_timer = timer_create(boss_respawn_time, false)
 
 	reset(&game)
 
@@ -183,6 +198,8 @@ reset :: proc(using game: ^Game) {
 
 	timer_reset(&enemy_spawn_timer)
 	enemy_spawn_timer.threshold = game_stage_enemy_spawn_timer[.Stage1]
+	timer_reset(&boss_spawn_timer)
+	boss_spawn_timer.finished = true
 	timer_reset(&rando_drop_timer)
 	// force the game to do this directly once at launch
 	rando_drop_timer.finished = true
@@ -190,6 +207,7 @@ reset :: proc(using game: ^Game) {
 	total_timer = 0.0
 	stage = .Stage1
 
+	game.is_boss_alive = false
 	game_over = false
 	is_picking_upgrade = false
 	total_number_upgrades = 0
@@ -288,6 +306,10 @@ update :: proc(using game: ^Game) {
 		stage = .Stage3
 	}
 
+	if stage == .Stage3 && total_timer >= game_time_stage3_threshold {
+		stage = .Stage4
+	}
+
 	if enemy_spawn_timer.finished {
 		enemy_spawn(
 			em,
@@ -297,6 +319,17 @@ update :: proc(using game: ^Game) {
 			),
 		)
 		timer_reset(&enemy_spawn_timer)
+	}
+
+	if stage >= .Stage4 && !is_boss_alive && boss_spawn_timer.finished {
+		enemy_spawn(
+			em,
+			EnemyType.Boss,
+			create_random_position_outside_of_bounds(
+				{player.position.x, player.position.y, window_width / zoom, window_height / zoom},
+			),
+		)
+		is_boss_alive = true
 	}
 
 	// will trigger instantly
@@ -326,6 +359,25 @@ update :: proc(using game: ^Game) {
 	player_update(player, dt)
 
 	total_timer += f64(dt)
+
+	when ODIN_DEBUG {
+		if rl.IsKeyPressed(rl.KeyboardKey.F5) {
+			fmt.println("Spawn Boss")
+			enemy_spawn(
+				em,
+				EnemyType.Boss,
+				create_random_position_outside_of_bounds(
+					 {
+						player.position.x,
+						player.position.y,
+						window_width / zoom,
+						window_height / zoom,
+					},
+				),
+			)
+			is_boss_alive = true
+		}
+	}
 }
 
 create_random_position_outside_of_bounds :: proc(bounds: rl.Rectangle) -> rl.Vector2 {

@@ -14,6 +14,7 @@ MessageData :: union {
 	EmptyMsg,
 	EnemyMsg,
 	AtLocationMsg,
+	EnemyDiedMsg,
 	DropPickupMsg,
 }
 
@@ -25,6 +26,11 @@ EnemyMsg :: struct {
 
 AtLocationMsg :: struct {
 	position: rl.Vector2,
+}
+
+EnemyDiedMsg :: struct {
+	position: rl.Vector2,
+	type:     EnemyType,
 }
 
 DropPickupMsg :: struct {

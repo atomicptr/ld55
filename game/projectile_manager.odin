@@ -20,6 +20,7 @@ Projectile :: struct {
 	alive:          bool,
 	color:          rl.Color,
 	timer:          Timer,
+	size:           f32,
 }
 
 ProjectileManager :: struct {
@@ -44,6 +45,7 @@ projectile_manager_shoot :: proc(
 	direction: rl.Vector2,
 	speed: f32,
 	shot_by_player: bool,
+	size: f32 = projectile_size,
 ) {
 	new_index, ok := col_new_id(&self.collection)
 	if !ok {
@@ -59,6 +61,7 @@ projectile_manager_shoot :: proc(
 		true,
 		shot_by_player ? rl.BLUE : rl.PURPLE,
 		timer_create(projectile_timer_threshold, true),
+		size,
 	}
 }
 
@@ -98,7 +101,12 @@ projectile_manager_draw :: proc(using self: ^ProjectileManager) {
 		}
 
 		rl.DrawRectangleRec(
-			{col_items[i].position.x, col_items[i].position.y, projectile_size, projectile_size},
+			 {
+				col_items[i].position.x,
+				col_items[i].position.y,
+				col_items[i].size,
+				col_items[i].size,
+			},
 			col_items[i].color,
 		)
 	}
@@ -115,14 +123,14 @@ is_colliding :: proc(using self: ^ProjectileManager, projectile: ProjectileId) -
 
 	if !p.shot_by_player {
 		return rl.CheckCollisionRecs(
-			{p.position.x, p.position.y, projectile_size, projectile_size},
+			{p.position.x, p.position.y, col_items[projectile].size, col_items[projectile].size},
 			{player.position.x, player.position.y, player_size, player_size},
 		), EnemyId(0)
 	}
 
 	return enemy_manager_is_colliding(
 		em,
-		{p.position.x, p.position.y, projectile_size, projectile_size},
+		{p.position.x, p.position.y, col_items[projectile].size, col_items[projectile].size},
 	)
 }
 
