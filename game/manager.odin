@@ -6,4 +6,5 @@ ManagerBundle :: struct {
 	mm:     ^MinionManager,
 	dm:     ^DropsManager,
 	pm:     ^ProjectileManager,
+	am:     ^AudioManager,
 }

@@ -77,6 +77,11 @@ main :: proc() {
 	rl.InitWindow(window_width, window_height, title)
 	defer rl.CloseWindow()
 
+	rl.InitAudioDevice()
+	defer rl.CloseAudioDevice()
+
+	rl.SetMasterVolume(0.5)
+
 	rl.SetTargetFPS(60)
 	rl.SetExitKey(rl.KeyboardKey.KEY_NULL)
 
@@ -147,11 +152,13 @@ create :: proc() -> Game {
 	game.pm = projectile_manager_create()
 	game.mm = minion_manager_create()
 	game.dm = drops_manager_create()
+	game.am = audio_manager_create()
 
 	enemy_manager_setup(game.em, &game.bundle)
 	projectile_manager_setup(game.pm, &game.bundle)
 	minion_manager_setup(game.mm, &game.bundle)
 	drops_manager_setup(game.dm, &game.bundle)
+	audio_manager_setup(game.am, &game.bundle)
 
 	game.enemy_spawn_timer = timer_create(game_stage_enemy_spawn_timer[.Stage1])
 	game.rando_drop_timer = timer_create(rando_drop_spawn_time)
@@ -238,6 +245,7 @@ update :: proc(using game: ^Game) {
 			is_time_frozen = true
 			za_warudo_timer.threshold = f32(upgrade_stats[upgrade].value)
 			timer_reset(&za_warudo_timer)
+			audio_manager_play(am, .EffectZaWarudo)
 		}
 
 		enemy_kill_counter = 0
@@ -476,6 +484,7 @@ draw :: proc(using game: ^Game) {
 }
 
 destroy :: proc(game: ^Game) {
+	audio_manager_destroy(game.am)
 	drops_manager_destroy(game.dm)
 	projectile_manager_destroy(game.pm)
 	minion_manager_destroy(game.mm)
