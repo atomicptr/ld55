@@ -92,16 +92,6 @@ player_process_hit :: proc(using self: ^Player) {
 	timer_reset(&iframe_timer)
 }
 
-player_handle_drop :: proc(using self: ^Player, type: DropsType) {
-	switch type {
-	case .Health:
-		if health == max_health {
-			return
-		}
-		health += 1
-	}
-}
-
 player_destroy :: proc(self: ^Player) {
 	free(self)
 }

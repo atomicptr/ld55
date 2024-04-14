@@ -7,6 +7,7 @@ projectiles_max :: 2048
 projectile_max_range :: 500.0
 projectile_size :: 4
 projectile_timer_threshold :: 5.0
+projectile_speed :: 200.0
 
 ProjectileId :: distinct uint
 
@@ -124,6 +125,15 @@ is_colliding :: proc(using self: ^ProjectileManager, projectile: ProjectileId) -
 		em,
 		{p.position.x, p.position.y, projectile_size, projectile_size},
 	)
+}
+
+projectile_manager_reset :: proc(using self: ^ProjectileManager) {
+	col_index = 0
+	col_count = 0
+
+	for &item in col_items {
+		item.alive = false
+	}
 }
 
 projectile_manager_destroy :: proc(using self: ^ProjectileManager) {

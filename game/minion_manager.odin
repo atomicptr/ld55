@@ -105,7 +105,7 @@ minion_manager_update :: proc(using self: ^MinionManager, dt: f32) {
 					pm,
 					col_items[i].position,
 					direction_to(col_items[i].position, enemy_pos + enemy_vel * aim_delta_time),
-					100.0,
+					projectile_speed,
 					true,
 				)
 
@@ -125,13 +125,24 @@ minion_manager_draw :: proc(using self: ^MinionManager) {
 
 		rl.DrawCircle(i32(col_items[i].position.x), i32(col_items[i].position.y), 4, rl.DARKGREEN)
 
-		rl.DrawLine(
-			i32(col_items[i].position.x + 2),
-			i32(col_items[i].position.y + 2),
-			i32(col_items[i].position.x + 2 + col_items[i].velocity.x),
-			i32(col_items[i].position.y + 2 + col_items[i].velocity.y),
-			rl.PINK,
-		)
+		when ODIN_DEBUG {
+			rl.DrawLine(
+				i32(col_items[i].position.x + 2),
+				i32(col_items[i].position.y + 2),
+				i32(col_items[i].position.x + 2 + col_items[i].velocity.x),
+				i32(col_items[i].position.y + 2 + col_items[i].velocity.y),
+				rl.PINK,
+			)
+		}
+	}
+}
+
+minion_manager_reset :: proc(using self: ^MinionManager) {
+	col_index = 0
+	col_count = 0
+
+	for &item in col_items {
+		item.alive = false
 	}
 }
 

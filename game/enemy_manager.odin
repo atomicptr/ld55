@@ -102,13 +102,16 @@ enemy_manager_draw :: proc(using self: ^EnemyManager) {
 			{enemy.position.x, enemy.position.y, f32(col_items[i].size), f32(col_items[i].size)},
 			rl.RED,
 		)
-		rl.DrawLine(
-			i32(enemy.position.x + f32(enemy.size) * 0.5),
-			i32(enemy.position.y + f32(enemy.size) * 0.5),
-			i32(enemy.position.x + f32(enemy.size) * 0.5 + enemy.velocity.x * 10),
-			i32(enemy.position.y + f32(enemy.size) * 0.5 + enemy.velocity.y * 10),
-			rl.GREEN,
-		)
+
+		when ODIN_DEBUG {
+			rl.DrawLine(
+				i32(enemy.position.x + f32(enemy.size) * 0.5),
+				i32(enemy.position.y + f32(enemy.size) * 0.5),
+				i32(enemy.position.x + f32(enemy.size) * 0.5 + enemy.velocity.x * 10),
+				i32(enemy.position.y + f32(enemy.size) * 0.5 + enemy.velocity.y * 10),
+				rl.GREEN,
+			)
+		}
 	}
 }
 
@@ -158,6 +161,15 @@ enemy_manager_is_colliding :: proc(
 	}
 
 	return false, EnemyId(0)
+}
+
+enemy_manager_reset :: proc(using self: ^EnemyManager) {
+	col_index = 0
+	col_count = 0
+
+	for &item in col_items {
+		item.alive = false
+	}
 }
 
 enemy_manager_destroy :: proc(self: ^EnemyManager) {

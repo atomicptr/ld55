@@ -13,6 +13,7 @@ window_height :: 720
 zoom :: 2.0
 
 enemy_spawn_time :: 0.2
+rando_drop_spawn_time :: 20.0
 
 Game :: struct {
 	player:            ^Player,
@@ -21,8 +22,11 @@ Game :: struct {
 	pm:                ^ProjectileManager,
 	dm:                ^DropsManager,
 	enemy_spawn_timer: Timer,
+	rando_drop_timer:  Timer,
 	camera:            rl.Camera2D,
+	total_timer:       f64,
 	paused:            bool,
+	game_over:         bool,
 }
 
 main :: proc() {
@@ -78,7 +82,7 @@ game_on_message :: proc(receiver: rawptr, msg_type: MessageType, msg_data: Messa
 
 	#partial switch msg_type {
 	case .PlayerDied:
-		fmt.println("YOU LOST")
+		game.game_over = true
 	case .PlayerGotHit:
 		#partial switch data in msg_data {
 		case EmptyMsg:
@@ -94,10 +98,18 @@ game_on_message :: proc(receiver: rawptr, msg_type: MessageType, msg_data: Messa
 		enemy_manager_kill(game.em, data.enemy)
 	case .EnemyDied:
 		data := msg_data.(AtLocationMsg)
-		drops_manager_rng_drop(game.dm, .Health, data.position)
+		drops_manager_rng_drop(game.dm, {.Health, .MinionShooter}, data.position)
 	case .DropPickup:
 		data := msg_data.(DropPickupMsg)
-		player_handle_drop(game.player, data.type)
+		switch data.type {
+		case .Health:
+			if game.player.health == game.player.max_health {
+				return
+			}
+			game.player.health += 1
+		case .MinionShooter:
+			minion_manager_spawn(game.mm, .Shooter, game.player.position)
+		}
 	}
 }
 
@@ -115,13 +127,43 @@ create :: proc() -> Game {
 	game.mm = minion_manager_create(game.player, game.em, game.pm)
 	game.dm = drops_manager_create(game.player)
 	game.enemy_spawn_timer = timer_create(enemy_spawn_time)
+	game.rando_drop_timer = timer_create(rando_drop_spawn_time)
+
+	reset(&game)
+
 	return game
+}
+
+reset :: proc(using game: ^Game) {
+	enemy_manager_reset(game.em)
+	projectile_manager_reset(game.pm)
+	minion_manager_reset(game.mm)
+	drops_manager_reset(game.dm)
+
+	player.position = {0, 0}
+	player.health = player_initial_hp
+	player.max_health = player_initial_hp
+
+	timer_reset(&enemy_spawn_timer)
+	timer_reset(&rando_drop_timer)
+	// force the game to do this directly once at launch
+	rando_drop_timer.finished = true
+
+	total_timer = 0.0
+	game_over = false
 }
 
 update :: proc(using game: ^Game) {
 	dt := rl.GetFrameTime()
 
 	broker_process_messages(b)
+
+	if game_over {
+		if rl.IsKeyPressed(rl.KeyboardKey.ENTER) {
+			reset(game)
+		}
+		return
+	}
 
 	if rl.IsKeyPressed(rl.KeyboardKey.ESCAPE) {
 		paused = !paused
@@ -132,10 +174,7 @@ update :: proc(using game: ^Game) {
 	}
 
 	timer_update(&enemy_spawn_timer, dt)
-
-	if rl.IsKeyPressed(rl.KeyboardKey.SPACE) {
-		minion_manager_spawn(mm, .Shooter, player.position)
-	}
+	timer_update(&rando_drop_timer, dt)
 
 	if enemy_spawn_timer.finished {
 		enemy_spawn(
@@ -148,6 +187,18 @@ update :: proc(using game: ^Game) {
 		timer_reset(&enemy_spawn_timer)
 	}
 
+	// will trigger instantly
+	if rando_drop_timer.finished {
+		drops_manager_spawn(
+			dm,
+			.MinionShooter,
+			create_random_position_outside_of_bounds(
+				{player.position.x, player.position.y, window_width / zoom, window_height / zoom},
+			),
+		)
+		timer_reset(&rando_drop_timer)
+	}
+
 	camera.target = player.position
 
 	enemy_manager_update(em, dt)
@@ -155,6 +206,8 @@ update :: proc(using game: ^Game) {
 	projectile_manager_update(pm, dt)
 	drops_manager_update(dm, dt)
 	player_update(player, dt)
+
+	total_timer += f64(dt)
 }
 
 create_random_position_outside_of_bounds :: proc(bounds: rl.Rectangle) -> rl.Vector2 {
@@ -188,6 +241,20 @@ draw :: proc(using game: ^Game) {
 		rl.DrawRectangleRec({0.0, 0.0, window_width, window_height}, rl.Color{0, 0, 0, 125})
 		rl.DrawText("PAUSED", window_width / 2 - 100, window_height / 2 - 25, 50, rl.WHITE)
 	}
+
+	if game_over {
+		rl.DrawRectangleRec({0.0, 0.0, window_width, window_height}, rl.Color{0, 0, 0, 125})
+		rl.DrawText("GAME OVER", window_width / 2 - 150, window_height / 2 - 25, 50, rl.WHITE)
+		rl.DrawText(
+			"Press ENTER to restart",
+			window_width / 2 - 130,
+			window_height / 2 + 50,
+			20,
+			rl.WHITE,
+		)
+	}
+
+	rl.DrawText(fmt.ctprintf("%3.1fs", total_timer), window_width - 100, 10, 20, rl.BLACK)
 
 	when ODIN_DEBUG {
 		rl.DrawFPS(10, 10)
