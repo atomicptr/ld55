@@ -127,6 +127,7 @@ game_on_message :: proc(receiver: rawptr, msg_type: MessageType, msg_data: Messa
 	case .EnemyGotHit:
 		data := msg_data.(EnemyMsg)
 		enemy_manager_process_damage(game.em, data.enemy, game.player.position)
+		audio_manager_play(game.am, .EnemyGotHit)
 	case .EnemyDied:
 		data := msg_data.(EnemyDiedMsg)
 		game.enemy_kill_counter += 1
@@ -150,6 +151,7 @@ game_on_message :: proc(receiver: rawptr, msg_type: MessageType, msg_data: Messa
 		case .MinionShooter:
 			minion_manager_spawn(game.mm, .Shooter, game.player.position)
 		}
+		audio_manager_play(game.am, .Pickup)
 	}
 }
 
@@ -265,6 +267,8 @@ update :: proc(using game: ^Game) {
 			timer_reset(&za_warudo_timer)
 			audio_manager_play(am, .EffectZaWarudo)
 		}
+
+		audio_manager_play(am, .Boon)
 
 		enemy_kill_counter = 0
 		is_picking_upgrade = false

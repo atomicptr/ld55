@@ -27,6 +27,7 @@ ProjectileManager :: struct {
 	using collection: Collection(ProjectileId, Projectile, projectiles_max),
 	player:           ^Player,
 	em:               ^EnemyManager,
+	am:               ^AudioManager,
 }
 
 projectile_manager_create :: proc() -> ^ProjectileManager {
@@ -37,6 +38,7 @@ projectile_manager_create :: proc() -> ^ProjectileManager {
 projectile_manager_setup :: proc(using self: ^ProjectileManager, bundle: ^ManagerBundle) {
 	player = bundle.player
 	em = bundle.em
+	am = bundle.am
 }
 
 projectile_manager_shoot :: proc(
@@ -63,6 +65,8 @@ projectile_manager_shoot :: proc(
 		timer_create(projectile_timer_threshold, true),
 		size,
 	}
+
+	audio_manager_play(am, shot_by_player ? .Pew : .EnemyPew)
 }
 
 projectile_manager_update :: proc(using self: ^ProjectileManager, dt: f32) {
