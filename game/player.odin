@@ -137,8 +137,6 @@ player_process_hit :: proc(using self: ^Player) {
 		return
 	}
 
-	fmt.println("you got hit!")
-
 	health -= 1
 	iframe_active = true
 	timer_reset(&iframe_timer)
