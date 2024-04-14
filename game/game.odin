@@ -31,11 +31,7 @@ game_stage_enemy_spawn_timer := [GameStage]f32 {
 }
 
 Game :: struct {
-	player:                    ^Player,
-	em:                        ^EnemyManager,
-	mm:                        ^MinionManager,
-	pm:                        ^ProjectileManager,
-	dm:                        ^DropsManager,
+	using bundle:              ManagerBundle,
 	enemy_spawn_timer:         Timer,
 	rando_drop_timer:          Timer,
 	camera:                    rl.Camera2D,
@@ -147,10 +143,16 @@ create :: proc() -> Game {
 		0,
 		zoom,
 	}
-	game.em = enemy_manager_create(game.player)
-	game.pm = projectile_manager_create(game.player, game.em)
-	game.mm = minion_manager_create(game.player, game.em, game.pm)
-	game.dm = drops_manager_create(game.player)
+	game.em = enemy_manager_create()
+	game.pm = projectile_manager_create()
+	game.mm = minion_manager_create()
+	game.dm = drops_manager_create()
+
+	enemy_manager_setup(game.em, &game.bundle)
+	projectile_manager_setup(game.pm, &game.bundle)
+	minion_manager_setup(game.mm, &game.bundle)
+	drops_manager_setup(game.dm, &game.bundle)
+
 	game.enemy_spawn_timer = timer_create(game_stage_enemy_spawn_timer[.Stage1])
 	game.rando_drop_timer = timer_create(rando_drop_spawn_time)
 	game.za_warudo_timer = timer_create(0.0, false)
@@ -281,7 +283,7 @@ update :: proc(using game: ^Game) {
 	if enemy_spawn_timer.finished {
 		enemy_spawn(
 			em,
-			EnemyType.Grunt,
+			chance_was_successful(0.02) ? EnemyType.Shooter : EnemyType.Grunt,
 			create_random_position_outside_of_bounds(
 				{player.position.x, player.position.y, window_width / zoom, window_height / zoom},
 			),

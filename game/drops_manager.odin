@@ -42,10 +42,13 @@ DropsManager :: struct {
 	player:           ^Player,
 }
 
-drops_manager_create :: proc(player: ^Player) -> ^DropsManager {
+drops_manager_create :: proc() -> ^DropsManager {
 	dm := new(DropsManager)
-	dm.player = player
 	return dm
+}
+
+drops_manager_setup :: proc(using self: ^DropsManager, bundle: ^ManagerBundle) {
+	player = bundle.player
 }
 
 drops_manager_spawn :: proc(using self: ^DropsManager, type: DropsType, position: rl.Vector2) {

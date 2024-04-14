@@ -32,16 +32,15 @@ MinionManager :: struct {
 	pm:               ^ProjectileManager,
 }
 
-minion_manager_create :: proc(
-	player: ^Player,
-	enemy_manager: ^EnemyManager,
-	projectile_manager: ^ProjectileManager,
-) -> ^MinionManager {
+minion_manager_create :: proc() -> ^MinionManager {
 	mm := new(MinionManager)
-	mm.player = player
-	mm.em = enemy_manager
-	mm.pm = projectile_manager
 	return mm
+}
+
+minion_manager_setup :: proc(using self: ^MinionManager, bundle: ^ManagerBundle) {
+	player = bundle.player
+	em = bundle.em
+	pm = bundle.pm
 }
 
 minion_manager_spawn :: proc(using self: ^MinionManager, type: MinionType, position: rl.Vector2) {

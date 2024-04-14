@@ -28,15 +28,14 @@ ProjectileManager :: struct {
 	em:               ^EnemyManager,
 }
 
-projectile_manager_create :: proc(
-	player: ^Player,
-	enemy_manager: ^EnemyManager,
-) -> ^ProjectileManager {
+projectile_manager_create :: proc() -> ^ProjectileManager {
 	pm := new(ProjectileManager)
-	pm.player = player
-	pm.em = enemy_manager
-
 	return pm
+}
+
+projectile_manager_setup :: proc(using self: ^ProjectileManager, bundle: ^ManagerBundle) {
+	player = bundle.player
+	em = bundle.em
 }
 
 projectile_manager_shoot :: proc(
