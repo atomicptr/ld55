@@ -25,4 +25,4 @@ run:
 build-release:
 	rm -rf out/release
 	mkdir -p out/release/desktop
-	odin build $(PACKAGE) --collection:libs=libs -out:"out/debug/desktop/$(PACKAGE)"
+	odin build $(PACKAGE) --collection:libs=libs -out:"out/release/desktop/$(PACKAGE)"
