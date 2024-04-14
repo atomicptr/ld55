@@ -22,6 +22,7 @@ Game :: struct {
 	dm:                ^DropsManager,
 	enemy_spawn_timer: Timer,
 	camera:            rl.Camera2D,
+	paused:            bool,
 }
 
 main :: proc() {
@@ -53,6 +54,7 @@ main :: proc() {
 	defer rl.CloseWindow()
 
 	rl.SetTargetFPS(60)
+	rl.SetExitKey(rl.KeyboardKey.KEY_NULL)
 
 	b = broker_create()
 
@@ -117,9 +119,17 @@ create :: proc() -> Game {
 }
 
 update :: proc(using game: ^Game) {
+	dt := rl.GetFrameTime()
+
 	broker_process_messages(b)
 
-	dt := rl.GetFrameTime()
+	if rl.IsKeyPressed(rl.KeyboardKey.ESCAPE) {
+		paused = !paused
+	}
+
+	if paused {
+		return
+	}
 
 	timer_update(&enemy_spawn_timer, dt)
 
@@ -172,6 +182,11 @@ draw :: proc(using game: ^Game) {
 		projectile_manager_draw(pm)
 		drops_manager_draw(dm)
 		player_draw(player)
+	}
+
+	if paused {
+		rl.DrawRectangleRec({0.0, 0.0, window_width, window_height}, rl.Color{0, 0, 0, 125})
+		rl.DrawText("PAUSED", window_width / 2 - 100, window_height / 2 - 25, 50, rl.WHITE)
 	}
 
 	when ODIN_DEBUG {
