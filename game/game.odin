@@ -13,7 +13,7 @@ window_height :: 720
 zoom :: 2.0
 
 rando_drop_spawn_time :: 15.0
-upgrade_enemy_kill_threshold :: 10
+upgrade_enemy_kill_threshold :: 15
 
 GameStage :: enum {
 	Stage1,
@@ -345,13 +345,22 @@ draw :: proc(using game: ^Game) {
 		player_draw(player)
 	}
 
+	// ui: health bar
+	hp_bar_width :: 250
+	hp_bar_rec_base := rl.Rectangle{window_width / 2 - hp_bar_width / 2, 25, hp_bar_width, 30}
+	hp_bar_rec := hp_bar_rec_base
+	hp_bar_rec.width = hp_bar_rec_base.width * (f32(player.health) / f32(player.max_health))
+	rl.DrawRectangleRec(hp_bar_rec_base, rl.BLACK)
+	rl.DrawRectangleRec(hp_bar_rec, rl.GREEN)
+	rl.DrawText("HP", i32(hp_bar_rec_base.x - 50), i32(hp_bar_rec_base.y), 30, rl.BLACK)
+
 	// ui: progress bar
 	rl.DrawRectangleRec(
 		 {
 			0.0,
 			0.0,
 			f32(window_width) * (f32(enemy_kill_counter) / f32(next_enemy_kill_threshold)),
-			4.0,
+			5.0,
 		},
 		rl.SKYBLUE,
 	)
