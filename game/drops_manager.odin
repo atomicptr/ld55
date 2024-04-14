@@ -5,10 +5,11 @@ import "core:math"
 import "core:math/linalg"
 import rl "libs:raylib"
 
-drops_max :: 2048
+drops_max :: 4096
 drop_size :: 2
 drop_arrow_offset :: 20.0
 drop_max_arrows :: 3
+drop_despawn_time :: 15.0
 
 DropId :: distinct uint
 
@@ -28,11 +29,12 @@ drop_has_arrows := [DropsType]bool {
 }
 
 Drop :: struct {
-	id:         DropId,
-	alive:      bool,
-	type:       DropsType,
-	position:   rl.Vector2,
-	has_arrows: bool,
+	id:            DropId,
+	alive:         bool,
+	type:          DropsType,
+	position:      rl.Vector2,
+	has_arrows:    bool,
+	despawn_timer: Timer,
 }
 
 DropsManager :: struct {
@@ -57,6 +59,7 @@ drops_manager_spawn :: proc(using self: ^DropsManager, type: DropsType, position
 	col_items[new_index].type = type
 	col_items[new_index].position = position
 	col_items[new_index].has_arrows = drop_has_arrows[type]
+	col_items[new_index].despawn_timer = timer_create(drop_despawn_time)
 }
 
 drops_manager_rng_drop :: proc(
@@ -80,6 +83,13 @@ drops_manager_rng_drop :: proc(
 drops_manager_update :: proc(using self: ^DropsManager, dt: f32) {
 	for i in 0 ..< col_index {
 		if !col_items[i].alive {
+			continue
+		}
+
+		timer_update(&col_items[i].despawn_timer, dt)
+
+		if col_items[i].despawn_timer.finished {
+			drops_manager_kill(self, DropId(i))
 			continue
 		}
 

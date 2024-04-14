@@ -12,8 +12,24 @@ window_width :: 1280
 window_height :: 720
 zoom :: 2.0
 
-enemy_spawn_time :: 0.2
-rando_drop_spawn_time :: 20.0
+rando_drop_spawn_time :: 15.0
+
+GameStage :: enum {
+	Stage1,
+	Stage2,
+	Stage3,
+}
+
+
+game_time_stage1_threshold :: 30.0
+game_time_stage2_threshold :: 60.0
+
+game_stage_enemy_spawn_timer := [GameStage]f32 {
+	.Stage1 = 0.2,
+	.Stage2 = 0.1,
+	.Stage3 = 0.05,
+}
+
 
 Game :: struct {
 	player:            ^Player,
@@ -25,6 +41,7 @@ Game :: struct {
 	rando_drop_timer:  Timer,
 	camera:            rl.Camera2D,
 	total_timer:       f64,
+	stage:             GameStage,
 	paused:            bool,
 	game_over:         bool,
 }
@@ -126,7 +143,7 @@ create :: proc() -> Game {
 	game.pm = projectile_manager_create(game.player, game.em)
 	game.mm = minion_manager_create(game.player, game.em, game.pm)
 	game.dm = drops_manager_create(game.player)
-	game.enemy_spawn_timer = timer_create(enemy_spawn_time)
+	game.enemy_spawn_timer = timer_create(game_stage_enemy_spawn_timer[.Stage1])
 	game.rando_drop_timer = timer_create(rando_drop_spawn_time)
 
 	reset(&game)
@@ -145,11 +162,14 @@ reset :: proc(using game: ^Game) {
 	player.max_health = player_initial_hp
 
 	timer_reset(&enemy_spawn_timer)
+	enemy_spawn_timer.threshold = game_stage_enemy_spawn_timer[.Stage1]
 	timer_reset(&rando_drop_timer)
 	// force the game to do this directly once at launch
 	rando_drop_timer.finished = true
 
 	total_timer = 0.0
+	stage = .Stage1
+
 	game_over = false
 }
 
@@ -174,7 +194,17 @@ update :: proc(using game: ^Game) {
 	}
 
 	timer_update(&enemy_spawn_timer, dt)
+	enemy_spawn_timer.threshold = game_stage_enemy_spawn_timer[stage]
+
 	timer_update(&rando_drop_timer, dt)
+
+	if stage == .Stage1 && total_timer >= game_time_stage1_threshold {
+		stage = .Stage2
+	}
+
+	if stage == .Stage2 && total_timer >= game_time_stage2_threshold {
+		stage = .Stage3
+	}
 
 	if enemy_spawn_timer.finished {
 		enemy_spawn(

@@ -6,7 +6,7 @@ import "core:math/linalg"
 import "core:math/rand"
 import rl "libs:raylib"
 
-enemies_max :: 1024
+enemies_max :: 2048
 
 enemy_acceleration_min :: 1.0
 enemy_acceleration_max :: 3.0

@@ -3,7 +3,7 @@ package game
 import "core:math/linalg"
 import rl "libs:raylib"
 
-projectiles_max :: 2048
+projectiles_max :: 4096
 projectile_max_range :: 500.0
 projectile_size :: 4
 projectile_timer_threshold :: 5.0
