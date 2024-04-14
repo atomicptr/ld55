@@ -112,14 +112,14 @@ game_on_message :: proc(receiver: rawptr, msg_type: MessageType, msg_data: Messa
 		case EmptyMsg:
 		// got damage from projectile or something else
 		case EnemyMsg:
-			enemy_manager_kill(game.em, data.enemy)
+			enemy_manager_process_damage(game.em, data.enemy, game.player.position)
 		}
 
 		// TODO: maybe do something with the enemy type?
 		player_process_hit(game.player)
 	case .EnemyGotHit:
 		data := msg_data.(EnemyMsg)
-		enemy_manager_kill(game.em, data.enemy)
+		enemy_manager_process_damage(game.em, data.enemy, game.player.position)
 	case .EnemyDied:
 		data := msg_data.(AtLocationMsg)
 		game.enemy_kill_counter += 1
@@ -221,7 +221,7 @@ update :: proc(using game: ^Game) {
 		case .SpawnMinionShooter:
 			fallthrough
 		case .SpawnMultipleShooter:
-			for i in 0 ..= upgrade_stats[upgrade].value {
+			for i in 0 ..< upgrade_stats[upgrade].value {
 				minion_manager_spawn(mm, .Shooter, player.position)
 			}
 		case .Iframe:

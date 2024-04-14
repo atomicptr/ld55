@@ -10,6 +10,7 @@ enemies_max :: 2048
 
 enemy_acceleration_min :: 1.0
 enemy_acceleration_max :: 3.0
+enemy_iframe_duration :: 1.0
 
 EnemyType :: enum {
 	Grunt,
@@ -17,14 +18,21 @@ EnemyType :: enum {
 
 EnemyId :: distinct uint
 
+enemy_type_max_hp := [EnemyType]uint {
+	.Grunt = 1,
+}
+
 Enemy :: struct {
-	id:           EnemyId,
-	type:         EnemyType,
-	alive:        bool,
-	position:     rl.Vector2,
-	velocity:     rl.Vector2,
-	acceleration: f32,
-	size:         uint,
+	id:            EnemyId,
+	type:          EnemyType,
+	alive:         bool,
+	position:      rl.Vector2,
+	velocity:      rl.Vector2,
+	acceleration:  f32,
+	size:          uint,
+	health:        uint,
+	iframe_active: bool,
+	iframe:        Timer,
 }
 
 EnemyManager :: struct {
@@ -46,21 +54,30 @@ enemy_spawn :: proc(using self: ^EnemyManager, type: EnemyType, position: rl.Vec
 
 	// TODO: depending on type define size and speed
 
-	col_items[new_index] = Enemy {
-		new_index,
-		type,
-		true,
-		position,
-		{0, 0},
-		rand.float32_range(enemy_acceleration_min, enemy_acceleration_max),
-		8,
-	}
+	col_items[new_index].id = new_index
+	col_items[new_index].type = type
+	col_items[new_index].alive = true
+	col_items[new_index].position = position
+	col_items[new_index].velocity = {0, 0}
+	col_items[new_index].size = 8 // size by type? image?
+	col_items[new_index].acceleration = rand.float32_range(
+		enemy_acceleration_min,
+		enemy_acceleration_max,
+	)
+	col_items[new_index].health = enemy_type_max_hp[type]
+	col_items[new_index].iframe_active = false
+	col_items[new_index].iframe = timer_create(enemy_iframe_duration, false)
+
 }
 
 enemy_manager_update :: proc(using self: ^EnemyManager, dt: f32) {
 	for i in 0 ..< col_index {
 		if !col_items[i].alive {
 			continue
+		}
+
+		if col_items[i].iframe.finished {
+			col_items[i].iframe_active = false
 		}
 
 		// check if an enemy collides with player
@@ -113,6 +130,26 @@ enemy_manager_draw :: proc(using self: ^EnemyManager) {
 			)
 		}
 	}
+}
+
+enemy_manager_process_damage :: proc(
+	using self: ^EnemyManager,
+	enemy_id: EnemyId,
+	damage_origin: rl.Vector2,
+) {
+	if col_items[enemy_id].iframe_active {
+		return
+	}
+
+	if col_items[enemy_id].health <= 1 {
+		enemy_manager_kill(self, enemy_id)
+		return
+	}
+
+	col_items[enemy_id].health -= 1
+	col_items[enemy_id].velocity += direction_to(damage_origin, col_items[enemy_id].position) * 2.0
+	col_items[enemy_id].iframe_active = true
+	timer_reset(&col_items[enemy_id].iframe)
 }
 
 enemy_manager_kill :: proc(using self: ^EnemyManager, enemy_id: EnemyId) {
