@@ -7,7 +7,7 @@ import "core:math/rand"
 import "core:mem"
 import rl "libs:raylib"
 
-title :: "LD55"
+title :: "LD55 :: The Last Summoner"
 window_width :: 1280
 window_height :: 720
 zoom :: 2.0

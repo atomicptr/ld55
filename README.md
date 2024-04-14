@@ -1,6 +1,8 @@
-# LD55 - name pending
+# LD55 - The Last Summoner
 
-...
+My LD55 entry made with [Odin](https://odin-lang.org) and [Raylib](https://raylib.com).
+
+You are the last summoner alive in an apocalypse and you have to survivor using your summons!
 
 ## License
 
