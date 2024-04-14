@@ -15,6 +15,7 @@ Player :: struct {
 	position:      rl.Vector2,
 	velocity:      rl.Vector2,
 	health:        uint,
+	max_health:    uint,
 	iframe_timer:  Timer,
 	iframe_active: bool,
 }
@@ -23,6 +24,7 @@ player_create :: proc() -> ^Player {
 	player := new(Player)
 	player.position = {0.0, 0.0}
 	player.health = player_initial_hp
+	player.max_health = player_initial_hp
 	player.iframe_timer = timer_create(player_iframe_threshold, false)
 
 	return player
@@ -88,6 +90,16 @@ player_process_hit :: proc(using self: ^Player) {
 	health -= 1
 	iframe_active = true
 	timer_reset(&iframe_timer)
+}
+
+player_handle_drop :: proc(using self: ^Player, type: DropsType) {
+	switch type {
+	case .Health:
+		if health == max_health {
+			return
+		}
+		health += 1
+	}
 }
 
 player_destroy :: proc(self: ^Player) {

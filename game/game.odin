@@ -19,6 +19,7 @@ Game :: struct {
 	em:                ^EnemyManager,
 	mm:                ^MinionManager,
 	pm:                ^ProjectileManager,
+	dm:                ^DropsManager,
 	enemy_spawn_timer: Timer,
 	camera:            rl.Camera2D,
 }
@@ -59,6 +60,8 @@ main :: proc() {
 	broker_register(b, .PlayerGotHit, &game, game_on_message)
 	broker_register(b, .PlayerDied, &game, game_on_message)
 	broker_register(b, .EnemyGotHit, &game, game_on_message)
+	broker_register(b, .EnemyDied, &game, game_on_message)
+	broker_register(b, .DropPickup, &game, game_on_message)
 
 	for !rl.WindowShouldClose() {
 		update(&game)
@@ -87,6 +90,12 @@ game_on_message :: proc(receiver: rawptr, msg_type: MessageType, msg_data: Messa
 	case .EnemyGotHit:
 		data := msg_data.(EnemyMsg)
 		enemy_manager_kill(game.em, data.enemy)
+	case .EnemyDied:
+		data := msg_data.(AtLocationMsg)
+		drops_manager_rng_drop(game.dm, .Health, data.position)
+	case .DropPickup:
+		data := msg_data.(DropPickupMsg)
+		player_handle_drop(game.player, data.type)
 	}
 }
 
@@ -102,6 +111,7 @@ create :: proc() -> Game {
 	game.em = enemy_manager_create(game.player)
 	game.pm = projectile_manager_create(game.player, game.em)
 	game.mm = minion_manager_create(game.player, game.em, game.pm)
+	game.dm = drops_manager_create(game.player)
 	game.enemy_spawn_timer = timer_create(enemy_spawn_time)
 	return game
 }
@@ -133,6 +143,7 @@ update :: proc(using game: ^Game) {
 	enemy_manager_update(em, dt)
 	minion_manager_update(mm, dt)
 	projectile_manager_update(pm, dt)
+	drops_manager_update(dm, dt)
 	player_update(player, dt)
 }
 
@@ -159,19 +170,46 @@ draw :: proc(using game: ^Game) {
 		enemy_manager_draw(em)
 		minion_manager_draw(mm)
 		projectile_manager_draw(pm)
+		drops_manager_draw(dm)
 		player_draw(player)
 	}
 
 	when ODIN_DEBUG {
 		rl.DrawFPS(10, 10)
 		rl.DrawText(fmt.ctprintf("Health: %d", player.health), 10, 30, 20, rl.BLACK)
-		rl.DrawText(fmt.ctprintf("Enemies: %d", em.col_count), 10, 50, 20, rl.BLACK)
-		rl.DrawText(fmt.ctprintf("Minions: %d", mm.col_count), 10, 70, 20, rl.BLACK)
-		rl.DrawText(fmt.ctprintf("Projectile: %d", pm.col_count), 10, 90, 20, rl.BLACK)
+		rl.DrawText(
+			fmt.ctprintf("Enemies: %d (Idx: %d)", em.col_count, em.col_index),
+			10,
+			50,
+			20,
+			rl.BLACK,
+		)
+		rl.DrawText(
+			fmt.ctprintf("Minions: %d (Idx: %d)", mm.col_count, mm.col_index),
+			10,
+			70,
+			20,
+			rl.BLACK,
+		)
+		rl.DrawText(
+			fmt.ctprintf("Projectile: %d (Idx: %d)", pm.col_count, pm.col_index),
+			10,
+			90,
+			20,
+			rl.BLACK,
+		)
+		rl.DrawText(
+			fmt.ctprintf("Drops: %d (Idx: %d)", dm.col_count, dm.col_index),
+			10,
+			110,
+			20,
+			rl.BLACK,
+		)
 	}
 }
 
 destroy :: proc(game: ^Game) {
+	drops_manager_destroy(game.dm)
 	projectile_manager_destroy(game.pm)
 	minion_manager_destroy(game.mm)
 	enemy_manager_destroy(game.em)

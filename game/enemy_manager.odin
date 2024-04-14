@@ -113,6 +113,7 @@ enemy_manager_draw :: proc(using self: ^EnemyManager) {
 }
 
 enemy_manager_kill :: proc(using self: ^EnemyManager, enemy_id: EnemyId) {
+	broker_post(b, .EnemyDied, AtLocationMsg{col_items[enemy_id].position})
 	col_free_id(&self.collection, enemy_id)
 }
 

@@ -2,6 +2,7 @@ package game
 
 import "core:math"
 import "core:math/linalg"
+import "core:math/rand"
 import rl "libs:raylib"
 
 direction_to :: proc(vec, vec_to: rl.Vector2) -> rl.Vector2 {
@@ -30,4 +31,12 @@ aim_ahead :: proc(
 	}
 
 	return -1.0
+}
+
+chance_was_successful :: proc(chance: f32) -> bool {
+	if chance >= 1.0 {
+		return true
+	}
+
+	return rand.float32_range(0.0, 1.0) <= chance
 }
