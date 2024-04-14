@@ -4,6 +4,8 @@ My LD55 entry made with [Odin](https://odin-lang.org) and [Raylib](https://rayli
 
 You are the last summoner alive in an apocalypse and you have to survivor using your summons!
 
+![](.github/images/promo.gif)
+
 ## License
 
 GNU General Public License v3
