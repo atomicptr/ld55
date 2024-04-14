@@ -1,10 +1,14 @@
 package game
 
 import "core:fmt"
+import "core:math"
+import "core:math/linalg"
 import rl "libs:raylib"
 
 drops_max :: 2048
 drop_size :: 2
+drop_arrow_offset :: 20.0
+drop_max_arrows :: 3
 
 DropId :: distinct uint
 
@@ -14,6 +18,10 @@ DropsType :: enum {
 
 drop_chance := [DropsType]f32 {
 	.Health = 0.1,
+}
+
+drop_has_arrows := [DropsType]bool {
+	.Health = false,
 }
 
 Drop :: struct {
@@ -45,7 +53,7 @@ drops_manager_spawn :: proc(using self: ^DropsManager, type: DropsType, position
 	col_items[new_index].alive = true
 	col_items[new_index].type = type
 	col_items[new_index].position = position
-	col_items[new_index].has_arrows = true // TODO: change this depending on type
+	col_items[new_index].has_arrows = drop_has_arrows[type]
 }
 
 drops_manager_rng_drop :: proc(using self: ^DropsManager, type: DropsType, position: rl.Vector2) {
@@ -72,6 +80,8 @@ drops_manager_update :: proc(using self: ^DropsManager, dt: f32) {
 }
 
 drops_manager_draw :: proc(using self: ^DropsManager) {
+	arrows := 0
+
 	for i in 0 ..< col_index {
 		if !col_items[i].alive {
 			continue
@@ -83,6 +93,25 @@ drops_manager_draw :: proc(using self: ^DropsManager) {
 			drop_size,
 			rl.DARKPURPLE,
 		)
+
+		if col_items[i].has_arrows && arrows < drop_max_arrows {
+			from := player.position
+			to := col_items[i].position
+			line := linalg.normalize(to - from)
+
+			if linalg.distance(from, to) < drop_arrow_offset * 2 {
+				continue
+			}
+
+			rl.DrawLineEx(
+				from + line * drop_arrow_offset,
+				to - line * drop_arrow_offset,
+				1.0,
+				rl.GREEN,
+			)
+
+			arrows += 1
+		}
 	}
 }
 
