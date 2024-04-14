@@ -13,13 +13,13 @@ window_height :: 720
 zoom :: 2.0
 
 rando_drop_spawn_time :: 15.0
+upgrade_enemy_kill_threshold :: 10
 
 GameStage :: enum {
 	Stage1,
 	Stage2,
 	Stage3,
 }
-
 
 game_time_stage1_threshold :: 30.0
 game_time_stage2_threshold :: 60.0
@@ -30,20 +30,27 @@ game_stage_enemy_spawn_timer := [GameStage]f32 {
 	.Stage3 = 0.05,
 }
 
-
 Game :: struct {
-	player:            ^Player,
-	em:                ^EnemyManager,
-	mm:                ^MinionManager,
-	pm:                ^ProjectileManager,
-	dm:                ^DropsManager,
-	enemy_spawn_timer: Timer,
-	rando_drop_timer:  Timer,
-	camera:            rl.Camera2D,
-	total_timer:       f64,
-	stage:             GameStage,
-	paused:            bool,
-	game_over:         bool,
+	player:                    ^Player,
+	em:                        ^EnemyManager,
+	mm:                        ^MinionManager,
+	pm:                        ^ProjectileManager,
+	dm:                        ^DropsManager,
+	enemy_spawn_timer:         Timer,
+	rando_drop_timer:          Timer,
+	camera:                    rl.Camera2D,
+	total_timer:               f64,
+	stage:                     GameStage,
+	paused:                    bool,
+	game_over:                 bool,
+	is_picking_upgrade:        bool,
+	enemy_kill_counter:        uint,
+	upgrade_choices:           [3]Maybe(Upgrade),
+	selected_upgrade:          Maybe(Upgrade),
+	total_number_upgrades:     uint,
+	next_enemy_kill_threshold: uint,
+	za_warudo_timer:           Timer,
+	is_time_frozen:            bool,
 }
 
 main :: proc() {
@@ -115,6 +122,7 @@ game_on_message :: proc(receiver: rawptr, msg_type: MessageType, msg_data: Messa
 		enemy_manager_kill(game.em, data.enemy)
 	case .EnemyDied:
 		data := msg_data.(AtLocationMsg)
+		game.enemy_kill_counter += 1
 		drops_manager_rng_drop(game.dm, {.Health, .MinionShooter}, data.position)
 	case .DropPickup:
 		data := msg_data.(DropPickupMsg)
@@ -145,6 +153,7 @@ create :: proc() -> Game {
 	game.dm = drops_manager_create(game.player)
 	game.enemy_spawn_timer = timer_create(game_stage_enemy_spawn_timer[.Stage1])
 	game.rando_drop_timer = timer_create(rando_drop_spawn_time)
+	game.za_warudo_timer = timer_create(0.0, false)
 
 	reset(&game)
 
@@ -161,6 +170,8 @@ reset :: proc(using game: ^Game) {
 	player.health = player_initial_hp
 	player.max_health = player_initial_hp
 
+	enemy_kill_counter = 0
+
 	timer_reset(&enemy_spawn_timer)
 	enemy_spawn_timer.threshold = game_stage_enemy_spawn_timer[.Stage1]
 	timer_reset(&rando_drop_timer)
@@ -171,12 +182,72 @@ reset :: proc(using game: ^Game) {
 	stage = .Stage1
 
 	game_over = false
+	is_picking_upgrade = false
+	total_number_upgrades = 0
+	za_warudo_timer.finished = true
 }
 
 update :: proc(using game: ^Game) {
 	dt := rl.GetFrameTime()
 
 	broker_process_messages(b)
+
+	// upgrade threshold has been achieved...
+	next_enemy_kill_threshold = upgrade_enemy_kill_threshold + total_number_upgrades * 5
+	if enemy_kill_counter >= next_enemy_kill_threshold && !is_picking_upgrade {
+		for i in 0 ..< 3 {
+			upgrade_choices[i] = roll_upgrade({})
+		}
+
+		is_picking_upgrade = true
+	}
+
+	// user has picked an upgrade
+	if is_picking_upgrade && selected_upgrade != nil {
+		upgrade := selected_upgrade.(Upgrade)
+
+		switch upgrade {
+		case .PlusHealth:
+			player.health = math.min(
+				player.health + upgrade_stats[upgrade].value,
+				player.max_health,
+			)
+		case .PlusMaxHealth:
+			player.max_health += upgrade_stats[upgrade].value
+		case .BigPlusMaxHealth:
+			player.max_health += upgrade_stats[upgrade].value
+		case .RestoreAllHealth:
+			player.health = player.max_health
+		case .SpawnMinionShooter:
+			fallthrough
+		case .SpawnMultipleShooter:
+			for i in 0 ..= upgrade_stats[upgrade].value {
+				minion_manager_spawn(mm, .Shooter, player.position)
+			}
+		case .Iframe:
+			player.iframe_active = true
+			player.iframe_timer.threshold = f32(upgrade_stats[upgrade].value)
+			timer_reset(&player.iframe_timer)
+		case .FreezeTimeShort:
+			fallthrough
+		case .FreezeTimeMid:
+			fallthrough
+		case .FreezeTimeLong:
+			is_time_frozen = true
+			za_warudo_timer.threshold = f32(upgrade_stats[upgrade].value)
+			timer_reset(&za_warudo_timer)
+		}
+
+		enemy_kill_counter = 0
+		is_picking_upgrade = false
+		selected_upgrade = nil
+		total_number_upgrades += 1
+	}
+
+	// stop execution while upgrading
+	if is_picking_upgrade {
+		return
+	}
 
 	if game_over {
 		if rl.IsKeyPressed(rl.KeyboardKey.ENTER) {
@@ -197,6 +268,7 @@ update :: proc(using game: ^Game) {
 	enemy_spawn_timer.threshold = game_stage_enemy_spawn_timer[stage]
 
 	timer_update(&rando_drop_timer, dt)
+	timer_update(&za_warudo_timer, dt)
 
 	if stage == .Stage1 && total_timer >= game_time_stage1_threshold {
 		stage = .Stage2
@@ -229,11 +301,17 @@ update :: proc(using game: ^Game) {
 		timer_reset(&rando_drop_timer)
 	}
 
+	if za_warudo_timer.finished {
+		is_time_frozen = false
+	}
+
 	camera.target = player.position
 
-	enemy_manager_update(em, dt)
-	minion_manager_update(mm, dt)
-	projectile_manager_update(pm, dt)
+	if !is_time_frozen {
+		enemy_manager_update(em, dt)
+		minion_manager_update(mm, dt)
+		projectile_manager_update(pm, dt)
+	}
 	drops_manager_update(dm, dt)
 	player_update(player, dt)
 
@@ -267,6 +345,20 @@ draw :: proc(using game: ^Game) {
 		player_draw(player)
 	}
 
+	// ui: progress bar
+	rl.DrawRectangleRec(
+		 {
+			0.0,
+			0.0,
+			f32(window_width) * (f32(enemy_kill_counter) / f32(next_enemy_kill_threshold)),
+			4.0,
+		},
+		rl.SKYBLUE,
+	)
+
+	// ui: timer
+	rl.DrawText(fmt.ctprintf("%3.1fs", total_timer), window_width - 100, 10, 20, rl.BLACK)
+
 	if paused {
 		rl.DrawRectangleRec({0.0, 0.0, window_width, window_height}, rl.Color{0, 0, 0, 125})
 		rl.DrawText("PAUSED", window_width / 2 - 100, window_height / 2 - 25, 50, rl.WHITE)
@@ -284,7 +376,52 @@ draw :: proc(using game: ^Game) {
 		)
 	}
 
-	rl.DrawText(fmt.ctprintf("%3.1fs", total_timer), window_width - 100, 10, 20, rl.BLACK)
+	if is_picking_upgrade {
+		rl.DrawRectangleRec({0.0, 0.0, window_width, window_height}, rl.Color{0, 0, 0, 125})
+		rl.DrawText("PICK A BOON", window_width / 2 - 200, window_height / 2 - 175, 50, rl.WHITE)
+
+		box_size :: 200.0
+		gap :: 50.0
+
+		count_upgrade_choices := 0
+
+		for u in upgrade_choices {
+			if u != nil {
+				count_upgrade_choices += 1
+			}
+		}
+
+		total_width := count_upgrade_choices * box_size + (count_upgrade_choices - 1) * gap
+		starting_x := (window_width - total_width) / 2
+
+		for c, i in upgrade_choices {
+			if c == nil {
+				continue
+			}
+
+			choice_val := c.(Upgrade)
+			choice_stats := upgrade_stats[choice_val]
+
+			str := fmt.ctprintf("[%s]\n%s", choice_stats.rarity, choice_stats.description)
+
+			if choice_stats.format {
+				str = fmt.ctprintf(string(str), choice_stats.value)
+			}
+
+			if rl.GuiButton(
+				    {
+					   f32(starting_x + (i * (box_size + gap))),
+					   window_height - box_size * 2 - 50,
+					   box_size,
+					   box_size * 2,
+				   },
+				   str,
+			   ) {
+				// TODO: do something with rarity
+				selected_upgrade = choice_val
+			}
+		}
+	}
 
 	when ODIN_DEBUG {
 		rl.DrawFPS(10, 10)
@@ -314,6 +451,13 @@ draw :: proc(using game: ^Game) {
 			fmt.ctprintf("Drops: %d (Idx: %d)", dm.col_count, dm.col_index),
 			10,
 			110,
+			20,
+			rl.BLACK,
+		)
+		rl.DrawText(
+			fmt.ctprintf("Upgrade: %d/%d", enemy_kill_counter, next_enemy_kill_threshold),
+			10,
+			130,
 			20,
 			rl.BLACK,
 		)

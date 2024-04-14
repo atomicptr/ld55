@@ -35,6 +35,7 @@ player_update :: proc(using self: ^Player, dt: f32) {
 
 	if iframe_active && iframe_timer.finished {
 		iframe_active = false
+		iframe_timer.threshold = player_iframe_threshold
 	}
 
 	direction := rl.Vector2(0)
